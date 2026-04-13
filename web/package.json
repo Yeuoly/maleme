@@ -1,0 +1,19 @@
+{
+  "name": "maleme-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "13.1.8",
+    "astro": "6.1.5"
+  },
+  "devDependencies": {
+    "wrangler": "4.82.1"
+  }
+}

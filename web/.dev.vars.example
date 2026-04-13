@@ -1,0 +1,4 @@
+APP_URL=http://127.0.0.1:4321
+GITHUB_CLIENT_ID=replace-with-your-local-github-oauth-client-id
+GITHUB_CLIENT_SECRET=replace-with-your-local-github-oauth-client-secret
+SESSION_SECRET=replace-with-a-long-random-string

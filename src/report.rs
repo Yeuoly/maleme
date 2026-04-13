@@ -29,6 +29,7 @@ struct ReportData {
     message_count: usize,
     range_start: String,
     range_end: String,
+    submit_endpoint: &'static str,
 }
 
 struct ReportTheme {
@@ -271,6 +272,7 @@ pub fn render_report(
       flex-wrap: wrap;
       gap: 10px;
       margin-top: 14px;
+      margin-bottom: 14px;
     }}
     .meta-item {{
       padding: 10px 12px;
@@ -291,6 +293,27 @@ pub fn render_report(
       font-weight: 700;
       font-family: "Orbitron", "Noto Sans SC", sans-serif;
       font-variant-numeric: tabular-nums;
+    }}
+    .submit-form {{
+      position: relative;
+      z-index: 3;
+      margin-top: 6px;
+    }}
+    .submit-button {{
+      height: 48px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 18px;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      background: linear-gradient(135deg, #ff5a5f, #ff7f50);
+      box-shadow: 0 16px 28px rgba(255, 90, 95, 0.24);
+      cursor: pointer;
+    }}
+    .submit-button:hover {{
+      transform: translateY(-1px);
     }}
     .sbai-card {{
       position: relative;
@@ -640,6 +663,12 @@ pub fn render_report(
             <div class="meta-value number-roll" data-target-number="{total_tokens}" data-decimals="0">0</div>
           </div>
         </div>
+        <form class="submit-form" method="post" action="{submit_endpoint}">
+          <input type="hidden" name="profanityCount" value="{total_profanities}">
+          <input type="hidden" name="tokens" value="{total_tokens}">
+          <input type="hidden" name="sbai" value="{sbai:.2}">
+          <button type="submit" class="submit-button">提交到 leaderboard 看看你有多能骂！</button>
+        </form>
         </div>
       </div>
       <div class="panel sbai-card">
@@ -1270,6 +1299,7 @@ pub fn render_report(
         sbai_border = theme.sbai_border,
         sbai_text = theme.sbai_text,
         sbai_muted = theme.sbai_muted,
+        submit_endpoint = data.submit_endpoint,
     ))
 }
 
@@ -1288,6 +1318,7 @@ fn build_report_data(
             message_count: 0,
             range_start: "还没有记录".to_owned(),
             range_end: "还没有记录".to_owned(),
+            submit_endpoint: "https://leaderboard.sbai.uk/submit",
         });
     }
 
@@ -1348,6 +1379,7 @@ fn build_report_data(
         message_count: messages.len(),
         range_start,
         range_end,
+        submit_endpoint: "https://leaderboard.sbai.uk/submit",
     })
 }
 
@@ -1711,6 +1743,8 @@ mod tests {
         assert!(html.contains("getContext('2d')"));
         assert!(html.contains("sbai-alert"));
         assert!(html.contains("彻底爆炸"));
+        assert!(html.contains("提交到 leaderboard 看看你有多能骂！"));
+        assert!(html.contains("https://leaderboard.sbai.uk/submit"));
     }
 
     #[test]

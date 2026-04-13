@@ -1,0 +1,77 @@
+---
+type Item = {
+  label: string;
+  value: string | number;
+  tone: "red" | "teal" | "gold";
+};
+
+type Props = {
+  items: Item[];
+};
+
+const { items } = Astro.props;
+
+const tones = {
+  red: {
+    border: "rgba(255, 91, 97, 0.28)",
+    bg: "rgba(255, 91, 97, 0.08)",
+    value: "#d62839",
+  },
+  teal: {
+    border: "rgba(15, 163, 177, 0.26)",
+    bg: "rgba(15, 163, 177, 0.08)",
+    value: "#0d7a84",
+  },
+  gold: {
+    border: "rgba(255, 183, 3, 0.28)",
+    bg: "rgba(255, 183, 3, 0.08)",
+    value: "#9b6a00",
+  },
+};
+---
+
+<div class="stats-strip">
+  {
+    items.map((item) => (
+      <div
+        class="stat-box"
+        style={`border-color:${tones[item.tone].border};background:${tones[item.tone].bg};`}
+      >
+        <div class="stat-label">{item.label}</div>
+        <div class="stat-value" style={`color:${tones[item.tone].value};`}>{item.value}</div>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .stat-box {
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 900;
+  }
+
+  @media (max-width: 680px) {
+    .stats-strip {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

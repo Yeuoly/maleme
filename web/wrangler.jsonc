@@ -1,0 +1,42 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "maleme-leaderboard",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"compatibility_date": "2026-04-13",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./dist"
+	},
+  "env": {
+    "production": {
+      "workers_dev": false,
+      "vars": {
+        "APP_URL": "https://leaderboard.sbai.uk"
+      },
+      "routes": [
+        {
+          "pattern": "leaderboard.sbai.uk",
+          "custom_domain": true
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "maleme-leaderboard",
+          "database_id": "fa1daa02-315c-45b4-852a-ea03d01d76e0"
+        }
+      ]
+    }
+  },
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "maleme_leaderboard",
+			"database_name": "maleme-leaderboard",
+			"database_id": "fa1daa02-315c-45b4-852a-ea03d01d76e0",
+			"remote": true
+		}
+	]
+}

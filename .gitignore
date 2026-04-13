@@ -1,3 +1,10 @@
 /target
 /*.tgz
 /npm/platforms/*/vendor
+.DS_Store
+node_modules/
+web/node_modules/
+web/dist/
+web/.astro/
+web/.wrangler/
+web/.dev.vars

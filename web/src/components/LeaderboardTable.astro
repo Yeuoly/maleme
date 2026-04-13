@@ -1,0 +1,131 @@
+---
+import type { LeaderboardEntry } from "../lib/types";
+
+type Props = {
+  entries: LeaderboardEntry[];
+};
+
+const { entries } = Astro.props;
+---
+
+<section class="surface leaderboard">
+  <div class="leaderboard-header">
+    <h2 class="section-title">Leaderboard</h2>
+  </div>
+
+  <div class="table-shell">
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Account</th>
+          <th>Events</th>
+          <th>Tokens</th>
+          <th>SBAI</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          entries.map((entry) => (
+            <tr>
+              <td class="rank">#{entry.rank}</td>
+              <td class="term-cell">
+                <img src={entry.avatarUrl} alt={entry.displayName} class="term-image" />
+                <span>
+                  <span class="term-text">{entry.displayName}</span>
+                  <span class="term-subtext">@{entry.login}</span>
+                </span>
+              </td>
+              <td>{entry.profanityCount.toLocaleString("en-US")}</td>
+              <td>{entry.tokens.toLocaleString("en-US")}</td>
+              <td class="change">{entry.sbai.toFixed(1)}</td>
+              <td>{new Date(entry.updatedAt).toLocaleDateString("en-US")}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .leaderboard {
+    padding: 18px;
+  }
+
+  .leaderboard-header {
+    margin-bottom: 14px;
+  }
+
+  .table-shell {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  th {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: rgba(246, 248, 251, 0.92);
+    position: sticky;
+    top: 0;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .rank {
+    font-weight: 900;
+    color: var(--accent);
+  }
+
+  .term-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .term-image {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex: 0 0 auto;
+  }
+
+  .term-text {
+    display: block;
+    font-weight: 800;
+  }
+
+  .term-subtext {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 3px;
+  }
+
+  .change {
+    color: #0d7a84;
+    font-weight: 800;
+  }
+</style>

@@ -1,0 +1,85 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import LeaderboardTable from "../components/LeaderboardTable.astro";
+import Podium from "../components/Podium.astro";
+import StatsStrip from "../components/StatsStrip.astro";
+import { getLeaderboardSummary, hasDatabaseBinding, listLeaderboard } from "../lib/db";
+
+const databaseReady = hasDatabaseBinding();
+const entries = databaseReady ? await listLeaderboard() : [];
+const podium = entries.slice(0, 3);
+const summary = databaseReady
+  ? await getLeaderboardSummary()
+  : {
+      participants: 0,
+      totalEvents: 0,
+      totalTokens: 0,
+      averageSbai: 0,
+    };
+
+const stats = [
+  { label: "Participants", value: summary.participants.toLocaleString("en-US"), tone: "red" as const },
+  { label: "Average SBAI", value: summary.averageSbai.toFixed(1), tone: "teal" as const },
+  { label: "Uploaded Tokens", value: summary.totalTokens.toLocaleString("en-US"), tone: "gold" as const },
+];
+---
+
+<BaseLayout title="maleme leaderboard" description="maleme leaderboard">
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div class="brand-copy">
+          <div class="brand-title">maleme leaderboard</div>
+        </div>
+      </div>
+      <a class="repo-link" href="https://github.com/Yeuoly/maleme" target="_blank" rel="noreferrer">
+        <img
+          src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+          alt="GitHub"
+          class="repo-avatar"
+        />
+      </a>
+    </header>
+
+    <section class="intro">
+      <StatsStrip items={stats} />
+    </section>
+
+    <Podium items={podium} />
+
+    <div style="height: 18px;"></div>
+
+    <LeaderboardTable entries={entries} />
+  </main>
+</BaseLayout>
+
+<style>
+  .intro {
+    margin-bottom: 18px;
+    display: block;
+  }
+
+  .repo-link {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+
+  .repo-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (max-width: 980px) {
+    .intro {
+      margin-bottom: 16px;
+    }
+  }
+</style>

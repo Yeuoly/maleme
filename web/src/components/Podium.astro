@@ -1,0 +1,113 @@
+---
+import type { LeaderboardEntry } from "../lib/types";
+
+type Props = {
+  items: LeaderboardEntry[];
+};
+
+const { items } = Astro.props;
+
+const gradientByRank = {
+  1: "linear-gradient(180deg, rgba(255,183,3,0.20), rgba(255,255,255,0.96))",
+  2: "linear-gradient(180deg, rgba(76,201,240,0.18), rgba(255,255,255,0.96))",
+  3: "linear-gradient(180deg, rgba(242,132,130,0.18), rgba(255,255,255,0.96))",
+};
+---
+
+<section class="surface podium">
+  <div class="podium-grid">
+    {
+      items.map((item) => (
+        <article
+          class="podium-card"
+          style={`background:${gradientByRank[item.rank as keyof typeof gradientByRank]};`}
+        >
+          <div class="podium-image-wrap">
+            <img src={item.avatarUrl} alt={item.displayName} class="podium-image" />
+            <div class="podium-rank">#{item.rank}</div>
+          </div>
+          <div class="podium-body">
+            <div class="podium-term">{item.displayName}</div>
+            <div class="podium-handle">@{item.login}</div>
+            <div class="podium-meta">
+              <span>{item.profanityCount.toLocaleString("en-US")} events</span>
+              <span>{item.sbai.toFixed(1)} SBAI</span>
+            </div>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .podium {
+    padding: 18px;
+  }
+
+  .podium-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .podium-card {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .podium-image-wrap {
+    position: relative;
+    aspect-ratio: 16 / 10;
+  }
+
+  .podium-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .podium-rank {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(19, 32, 51, 0.75);
+    color: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .podium-body {
+    padding: 12px;
+  }
+
+  .podium-term {
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+
+  .podium-handle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .podium-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 900px) {
+    .podium-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
