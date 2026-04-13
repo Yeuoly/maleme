@@ -1,16 +1,12 @@
 import { env } from "cloudflare:workers";
-import type { Viewer } from "./types";
+import type { LeaderboardReportPayload, Viewer } from "./types";
 
 const SESSION_COOKIE = "maleme_session";
 const PENDING_SUBMISSION_COOKIE = "maleme_pending_submission";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const PENDING_SUBMISSION_MAX_AGE = 60 * 10;
 
-export type PendingSubmission = {
-  profanityCount: number;
-  tokens: number;
-  sbai: number;
-};
+export type PendingSubmission = LeaderboardReportPayload;
 
 type GitHubUser = {
   id: number;

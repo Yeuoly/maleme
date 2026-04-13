@@ -27,27 +27,62 @@ const { entries } = Astro.props;
       </thead>
       <tbody>
         {
-          entries.map((entry) => (
-            <tr>
-              <td class="rank">#{entry.rank}</td>
-              <td class="term-cell">
-                <img src={entry.avatarUrl} alt={entry.displayName} class="term-image" />
-                <span>
-                  <span class="term-text">{entry.displayName}</span>
-                  <span class="term-subtext">@{entry.login}</span>
-                </span>
-              </td>
-              <td>{entry.profanityCount.toLocaleString("en-US")}</td>
-              <td>{entry.tokens.toLocaleString("en-US")}</td>
-              <td class="change">{entry.sbai.toFixed(1)}</td>
-              <td>{new Date(entry.updatedAt).toLocaleDateString("en-US")}</td>
-            </tr>
-          ))
+          entries.map((entry) => {
+            const profileHref = `/u/${encodeURIComponent(entry.login)}`;
+
+            return (
+              <tr class="leaderboard-row" data-profile-link={profileHref} tabindex="0" role="link">
+                <td class="rank">#{entry.rank}</td>
+                <td>
+                  <a href={profileHref} class="term-cell">
+                    <img src={entry.avatarUrl} alt={entry.displayName} class="term-image" />
+                    <span>
+                      <span class="term-text">{entry.displayName}</span>
+                      <span class="term-subtext">@{entry.login}</span>
+                    </span>
+                  </a>
+                </td>
+                <td>{entry.profanityCount.toLocaleString("en-US")}</td>
+                <td>{entry.tokens.toLocaleString("en-US")}</td>
+                <td class="change">{entry.sbai.toFixed(1)}</td>
+                <td>{new Date(entry.updatedAt).toLocaleDateString("en-US")}</td>
+              </tr>
+            );
+          })
         }
       </tbody>
     </table>
   </div>
 </section>
+
+<script>
+  for (const row of document.querySelectorAll(".leaderboard-row")) {
+    const navigate = () => {
+      const href = row.getAttribute("data-profile-link");
+      if (href) {
+        window.location.href = href;
+      }
+    };
+
+    row.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest("a, button, input, textarea, select")) {
+        return;
+      }
+
+      navigate();
+    });
+
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      navigate();
+    });
+  }
+</script>
 
 <style>
   .leaderboard {
@@ -93,6 +128,16 @@ const { entries } = Astro.props;
     border-bottom: none;
   }
 
+  .leaderboard-row {
+    cursor: pointer;
+    transition: background-color 160ms ease;
+  }
+
+  .leaderboard-row:hover td,
+  .leaderboard-row:focus-visible td {
+    background: rgba(15, 163, 177, 0.08);
+  }
+
   .rank {
     font-weight: 900;
     color: var(--accent);
@@ -102,6 +147,8 @@ const { entries } = Astro.props;
     display: flex;
     align-items: center;
     gap: 10px;
+    color: inherit;
+    text-decoration: none;
   }
 
   .term-image {

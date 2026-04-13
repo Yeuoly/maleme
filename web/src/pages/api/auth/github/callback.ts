@@ -10,7 +10,7 @@ import {
   isSecureRequest,
   sessionCookieSameSite,
 } from "../../../../lib/auth";
-import { hasDatabaseBinding, upsertLeaderboardEntry } from "../../../../lib/db";
+import { consumePendingSubmission, hasDatabaseBinding, upsertLeaderboardEntry } from "../../../../lib/db";
 
 export const prerender = false;
 
@@ -40,15 +40,22 @@ export const GET: APIRoute = async ({ cookies, redirect, url }) => {
     const pendingValue = cookies.get(getPendingSubmissionCookieName())?.value;
 
     if (pendingValue && hasDatabaseBinding()) {
-      const pending = decodePendingSubmission(pendingValue);
-      await upsertLeaderboardEntry(
-        viewer,
-        Math.trunc(pending.profanityCount),
-        Math.trunc(pending.tokens),
-        pending.sbai,
-      );
+      const pending =
+        (await consumePendingSubmission(pendingValue)) ??
+        (() => {
+          try {
+            return decodePendingSubmission(pendingValue);
+          } catch {
+            return null;
+          }
+        })();
+
       cookies.delete(getPendingSubmissionCookieName(), { path: "/" });
-      return redirect("/?state=submitted");
+
+      if (pending) {
+        await upsertLeaderboardEntry(viewer, pending);
+        return redirect(`/u/${encodeURIComponent(viewer.login)}?state=submitted`);
+      }
     }
 
     return redirect("/?state=signed-in");

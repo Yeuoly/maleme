@@ -110,6 +110,7 @@ pub fn render_report(
     let data = build_report_data(messages, tokens, detector)?;
     let chart = render_line_chart(&data.daily_counts);
     let word_cloud = render_word_cloud(&data.word_counts)?;
+    let submission_payload = render_submission_payload(&data)?;
     let (sbai_state, sbai_copy) = sbai_state_copy(data.sbai);
     let theme = report_theme(data.sbai);
     let word_palette_json = serde_json::to_string(&theme.word_palette)
@@ -667,6 +668,7 @@ pub fn render_report(
           <input type="hidden" name="profanityCount" value="{total_profanities}">
           <input type="hidden" name="tokens" value="{total_tokens}">
           <input type="hidden" name="sbai" value="{sbai:.2}">
+          <textarea hidden name="reportPayload">{submission_payload}</textarea>
           <button type="submit" class="submit-button">提交到 leaderboard 看看你有多能骂！</button>
         </form>
         </div>
@@ -1261,6 +1263,7 @@ pub fn render_report(
         total_profanities = data.total_profanities,
         total_tokens = data.total_tokens,
         sbai = data.sbai,
+        submission_payload = submission_payload,
         headline = report_headline(&data.range_start, &data.range_end, data.total_profanities),
         chart = chart,
         word_cloud = word_cloud,
@@ -1438,7 +1441,9 @@ fn report_theme(sbai: f64) -> ReportTheme {
             sbai_border: "rgba(255, 232, 171, 0.24)",
             sbai_text: "rgba(255, 246, 210, 0.96)",
             sbai_muted: "rgba(255, 226, 158, 0.82)",
-            word_palette: ["#59e8ff", "#ffb800", "#ffe85b", "#ff5f7d", "#89f5ff", "#ffcf5a"],
+            word_palette: [
+                "#59e8ff", "#ffb800", "#ffe85b", "#ff5f7d", "#89f5ff", "#ffcf5a",
+            ],
             fireworks_palette: ["#59e8ff", "#ffb800", "#ffe85b", "#ff5f7d", "#89f5ff"],
         };
     }
@@ -1476,7 +1481,9 @@ fn report_theme(sbai: f64) -> ReportTheme {
             sbai_border: "rgba(255, 192, 108, 0.26)",
             sbai_text: "rgba(255, 236, 199, 0.96)",
             sbai_muted: "rgba(255, 198, 123, 0.84)",
-            word_palette: ["#57d8ff", "#ff8f1f", "#ffd447", "#ff5f7d", "#88e6ff", "#ffb356"],
+            word_palette: [
+                "#57d8ff", "#ff8f1f", "#ffd447", "#ff5f7d", "#88e6ff", "#ffb356",
+            ],
             fireworks_palette: ["#57d8ff", "#ff8f1f", "#ffd447", "#ff5f7d", "#88e6ff"],
         };
     }
@@ -1514,7 +1521,9 @@ fn report_theme(sbai: f64) -> ReportTheme {
             sbai_border: "rgba(255, 173, 118, 0.26)",
             sbai_text: "rgba(255, 238, 202, 0.97)",
             sbai_muted: "rgba(255, 189, 138, 0.86)",
-            word_palette: ["#4fdbff", "#ff5d3d", "#ffd54a", "#ff4f7a", "#8beaff", "#ff965a"],
+            word_palette: [
+                "#4fdbff", "#ff5d3d", "#ffd54a", "#ff4f7a", "#8beaff", "#ff965a",
+            ],
             fireworks_palette: ["#4fdbff", "#ff5d3d", "#ffd54a", "#ff4f7a", "#8beaff"],
         };
     }
@@ -1551,7 +1560,9 @@ fn report_theme(sbai: f64) -> ReportTheme {
         sbai_border: "rgba(255, 158, 105, 0.28)",
         sbai_text: "rgba(255, 239, 201, 0.98)",
         sbai_muted: "rgba(255, 184, 125, 0.88)",
-        word_palette: ["#46dcff", "#ff3b30", "#ffd93d", "#ff3f76", "#8cecff", "#ff8e52"],
+        word_palette: [
+            "#46dcff", "#ff3b30", "#ffd93d", "#ff3f76", "#8cecff", "#ff8e52",
+        ],
         fireworks_palette: ["#46dcff", "#ff3b30", "#ffd93d", "#ff3f76", "#8cecff"],
     }
 }
@@ -1615,7 +1626,7 @@ fn render_word_cloud(word_counts: &[(String, i64)]) -> Result<String, ReportErro
         .map_err(ReportError::WordCloudJson)?
         .replace("</", "<\\/");
 
-Ok(format!(
+    Ok(format!(
         r#"<div class="cloud">
   <div id="word-cloud-viewport" class="cloud-viewport" aria-label="高频脏话词云，支持缩放和拖拽">
     <canvas id="word-cloud-scene" class="cloud-scene" data-words='{}'></canvas>
@@ -1624,6 +1635,33 @@ Ok(format!(
 </div>"#,
         words_json
     ))
+}
+
+fn render_submission_payload(data: &ReportData) -> Result<String, ReportError> {
+    let payload = serde_json::json!({
+        "rangeStart": data.range_start,
+        "rangeEnd": data.range_end,
+        "messageCount": data.message_count,
+        "profanityCount": data.total_profanities,
+        "tokens": data.total_tokens,
+        "sbai": data.sbai,
+        "dailyCounts": data.daily_counts.iter().map(|point| {
+            serde_json::json!({
+                "label": point.label,
+                "count": point.count,
+            })
+        }).collect::<Vec<_>>(),
+        "wordCounts": data.word_counts.iter().map(|(term, count)| {
+            serde_json::json!({
+                "term": term,
+                "count": count,
+            })
+        }).collect::<Vec<_>>(),
+    });
+
+    serde_json::to_string(&payload)
+        .map(|json| json.replace("</", "<\\/"))
+        .map_err(ReportError::WordCloudJson)
 }
 
 fn downloads_dir() -> Result<PathBuf, ReportError> {
@@ -1745,6 +1783,8 @@ mod tests {
         assert!(html.contains("彻底爆炸"));
         assert!(html.contains("提交到 leaderboard 看看你有多能骂！"));
         assert!(html.contains("https://leaderboard.sbai.uk/submit"));
+        assert!(html.contains("name=\"reportPayload\""));
+        assert!(html.contains("\"wordCounts\""));
     }
 
     #[test]

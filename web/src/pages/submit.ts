@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import {
-  encodePendingSubmission,
   getPendingSubmissionCookieName,
   getPendingSubmissionMaxAge,
   getSessionCookieName,
@@ -8,7 +7,8 @@ import {
   readViewerFromToken,
   sessionCookieSameSite,
 } from "../lib/auth";
-import { hasDatabaseBinding, upsertLeaderboardEntry } from "../lib/db";
+import { createFallbackReportPayload, parseReportPayloadJson } from "../lib/report";
+import { createPendingSubmission, hasDatabaseBinding, upsertLeaderboardEntry } from "../lib/db";
 
 export const prerender = false;
 
@@ -34,17 +34,22 @@ export const POST: APIRoute = async ({ cookies, redirect, request, url }) => {
     return redirect("/");
   }
 
+  const fallback = createFallbackReportPayload({
+    profanityCount: Math.trunc(profanityCount),
+    tokens: Math.trunc(tokens),
+    sbai,
+  });
+  const reportPayload = parseReportPayloadJson(formData.get("reportPayload")?.toString(), fallback);
+
   const token = cookies.get(getSessionCookieName())?.value;
   const viewer = await readViewerFromToken(token).catch(() => null);
 
   if (!viewer) {
+    const pendingToken = await createPendingSubmission(reportPayload, getPendingSubmissionMaxAge() * 1000);
+
     cookies.set(
       getPendingSubmissionCookieName(),
-      encodePendingSubmission({
-        profanityCount: Math.trunc(profanityCount),
-        tokens: Math.trunc(tokens),
-        sbai,
-      }),
+      pendingToken,
       {
         httpOnly: true,
         maxAge: getPendingSubmissionMaxAge(),
@@ -56,6 +61,6 @@ export const POST: APIRoute = async ({ cookies, redirect, request, url }) => {
     return redirect("/api/auth/github/login");
   }
 
-  await upsertLeaderboardEntry(viewer, Math.trunc(profanityCount), Math.trunc(tokens), sbai);
-  return redirect("/");
+  await upsertLeaderboardEntry(viewer, reportPayload);
+  return redirect(`/u/${encodeURIComponent(viewer.login)}?state=submitted`);
 };

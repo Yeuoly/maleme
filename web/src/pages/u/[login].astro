@@ -1,0 +1,562 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getReportTheme, getSbaiStatus } from "../../lib/report";
+import { getLeaderboardProfile, hasDatabaseBinding } from "../../lib/db";
+
+const login = Astro.params.login || "";
+const databaseReady = hasDatabaseBinding();
+const profile = databaseReady && login ? await getLeaderboardProfile(login) : null;
+
+if (!profile) {
+  Astro.response.status = 404;
+}
+
+const report = profile?.report;
+const theme = getReportTheme(report?.sbai ?? 0);
+const sbaiStatus = getSbaiStatus(report?.sbai ?? 0);
+const themeStyle = [
+  `--report-bg:${theme.bg}`,
+  `--report-bg-accent:${theme.bgAccent}`,
+  `--report-panel:${theme.panel}`,
+  `--report-panel-strong:${theme.panelStrong}`,
+  `--report-muted:${theme.muted}`,
+  `--report-text:${theme.text}`,
+  `--report-line:${theme.line}`,
+  `--report-line-soft:${theme.lineSoft}`,
+  `--report-accent:${theme.accent}`,
+  `--report-accent-soft:${theme.accentSoft}`,
+  `--report-accent-warm:${theme.accentWarm}`,
+  `--report-accent-pink:${theme.accentPink}`,
+  `--report-border:${theme.border}`,
+  `--report-shadow:${theme.shadow}`,
+  `--report-hero-from:${theme.heroFrom}`,
+  `--report-hero-to:${theme.heroTo}`,
+  `--report-hero-glow-a:${theme.heroGlowA}`,
+  `--report-hero-glow-b:${theme.heroGlowB}`,
+  `--report-sbai-glow:${theme.sbaiGlow}`,
+  `--report-sbai-surface-top:${theme.sbaiSurfaceTop}`,
+  `--report-sbai-surface-bottom:${theme.sbaiSurfaceBottom}`,
+  `--report-sbai-border:${theme.sbaiBorder}`,
+  `--report-sbai-text:${theme.sbaiText}`,
+  `--report-sbai-muted:${theme.sbaiMuted}`,
+].join(";");
+const maxDailyCount = Math.max(...(report?.dailyCounts.map((point) => point.count) ?? [0]), 1);
+const maxWordCount = Math.max(...(report?.wordCounts.map((item) => item.count) ?? [0]), 1);
+---
+
+<BaseLayout
+  title={profile ? `${profile.displayName} - maleme leaderboard` : "maleme leaderboard"}
+  description={profile ? `${profile.displayName} 的 maleme 词频报告` : "maleme leaderboard"}
+  lang="zh-CN"
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Rajdhani:wght@500;600;700&family=Noto+Sans+SC:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
+  </Fragment>
+
+  {
+    profile && report ? (
+      <main class="report-page" style={themeStyle}>
+        <div class="report-shell">
+          <header class="report-topbar">
+            <a href="/" class="back-link">返回排行榜</a>
+            <a href={profile.profileUrl} target="_blank" rel="noreferrer" class="github-link">
+              GitHub 主页
+            </a>
+          </header>
+
+          <section class="hero">
+            <article class="panel hero-main">
+              <div class="hero-copy">
+                <div class="eyebrow">maleme leaderboard / detail</div>
+                <h1>{profile.displayName}</h1>
+                <div class="hero-meta">
+                  <img src={profile.avatarUrl} alt={profile.displayName} class="avatar" />
+                  <div class="hero-meta-copy">
+                    <div class="handle">@{profile.login}</div>
+                    <div class="range">
+                      #{profile.rank} · {report.rangeStart} 到 {report.rangeEnd}
+                    </div>
+                  </div>
+                </div>
+                <div class="metric-grid">
+                  <div class="metric-box">
+                    <div class="metric-label">聊天输入</div>
+                    <div class="metric-value">{report.messageCount.toLocaleString("zh-CN")}</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">脏话次数</div>
+                    <div class="metric-value">{report.profanityCount.toLocaleString("zh-CN")}</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">总 Tokens</div>
+                    <div class="metric-value">{report.tokens.toLocaleString("zh-CN")}</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel sbai-card">
+              <div class="sbai-label">SBAI 指数</div>
+              <div class="sbai-alert">{sbaiStatus.state}</div>
+              <div class="sbai-value">{report.sbai.toFixed(2)}</div>
+              <div class="sbai-copy">{sbaiStatus.copy}</div>
+              <div class="sbai-footnote">
+                最近一次提交于 {new Date(profile.submittedAt).toLocaleString("zh-CN")}
+              </div>
+            </article>
+          </section>
+
+          <section class="detail-grid">
+            <article class="panel detail-panel">
+              <div class="panel-header">
+                <h2>每日脏话走势</h2>
+                <div class="panel-kicker">按报告区间逐日统计</div>
+              </div>
+
+              {
+                report.dailyCounts.length > 0 ? (
+                  <div class="daily-list">
+                    {report.dailyCounts.map((point) => {
+                      const width = point.count === 0 ? 0 : Math.max((point.count / maxDailyCount) * 100, 8);
+
+                      return (
+                        <div class="daily-row">
+                          <div class="daily-label">{point.label}</div>
+                          <div class="daily-track">
+                            <div class="daily-fill" style={`width:${width}%`}></div>
+                          </div>
+                          <div class="daily-value">{point.count.toLocaleString("zh-CN")}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div class="empty-state">这次提交没有携带逐日走势数据。</div>
+                )
+              }
+            </article>
+
+            <article class="panel detail-panel">
+              <div class="panel-header">
+                <h2>词频明细</h2>
+                <div class="panel-kicker">点击排行榜成员后查看的完整词条统计</div>
+              </div>
+
+              {
+                report.wordCounts.length > 0 ? (
+                  <div class="word-list">
+                    {report.wordCounts.map((item, index) => {
+                      const width = Math.max((item.count / maxWordCount) * 100, item.count > 0 ? 10 : 0);
+
+                      return (
+                        <div class="word-row">
+                          <div class="word-rank">#{index + 1}</div>
+                          <div class="word-main">
+                            <div class="word-term">{item.term}</div>
+                            <div class="word-track">
+                              <div class="word-fill" style={`width:${width}%`}></div>
+                            </div>
+                          </div>
+                          <div class="word-count">{item.count.toLocaleString("zh-CN")}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div class="empty-state">这次提交没有可展示的词频词条。</div>
+                )
+              }
+            </article>
+          </section>
+        </div>
+      </main>
+    ) : (
+      <main class="missing-shell">
+        <section class="surface missing-card">
+          <h1 class="missing-title">没有找到这个用户的报告</h1>
+          <p class="missing-copy">可能还没提交到 leaderboard，或者登录名已经发生变化。</p>
+          <a href="/" class="missing-link">回到排行榜</a>
+        </section>
+      </main>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .report-page {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, var(--report-hero-glow-a), transparent 24%),
+      radial-gradient(circle at top right, var(--report-hero-glow-b), transparent 24%),
+      linear-gradient(180deg, var(--report-bg) 0%, var(--report-bg-accent) 100%);
+    color: var(--report-text);
+  }
+
+  .report-shell {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .report-topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .back-link,
+  .github-link,
+  .missing-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--report-border, var(--border));
+    background: rgba(255, 255, 255, 0.04);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--report-border);
+    border-radius: 8px;
+    box-shadow: var(--report-shadow);
+  }
+
+  .hero-main {
+    background: linear-gradient(135deg, var(--report-hero-from), var(--report-hero-to));
+  }
+
+  .hero-main::before,
+  .hero-main::after {
+    content: "";
+    position: absolute;
+    inset: auto;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .hero-main::before {
+    top: -60px;
+    left: -40px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, var(--report-hero-glow-a), transparent 70%);
+  }
+
+  .hero-main::after {
+    right: -70px;
+    bottom: -80px;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, var(--report-hero-glow-b), transparent 70%);
+  }
+
+  .hero-copy,
+  .detail-panel,
+  .sbai-card {
+    position: relative;
+    z-index: 1;
+    padding: 20px;
+  }
+
+  .eyebrow,
+  .panel-kicker,
+  .metric-label {
+    font-family: "Rajdhani", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    color: var(--report-muted);
+    text-transform: uppercase;
+  }
+
+  h1,
+  h2,
+  .sbai-value,
+  .metric-value {
+    letter-spacing: 0;
+    font-family: "Orbitron", "Noto Sans SC", sans-serif;
+  }
+
+  h1 {
+    margin: 10px 0 16px;
+    font-size: 48px;
+    line-height: 0.98;
+    max-width: 12ch;
+    text-wrap: balance;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid var(--report-border);
+  }
+
+  .handle {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: "Rajdhani", "Noto Sans SC", sans-serif;
+  }
+
+  .range {
+    color: var(--report-muted);
+    font-size: 14px;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric-box {
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--report-border);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .metric-value {
+    margin-top: 8px;
+    font-size: 30px;
+    line-height: 1;
+    color: var(--report-line);
+  }
+
+  .sbai-card {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    background:
+      radial-gradient(circle at 16% 16%, var(--report-sbai-glow), transparent 24%),
+      linear-gradient(156deg, var(--report-sbai-surface-top) 0%, #141318 36%, var(--report-sbai-surface-bottom) 100%);
+    border-color: var(--report-sbai-border);
+  }
+
+  .sbai-label,
+  .sbai-alert,
+  .sbai-footnote {
+    font-family: "Rajdhani", "Noto Sans SC", sans-serif;
+  }
+
+  .sbai-label {
+    font-size: 15px;
+    color: var(--report-sbai-text);
+    text-transform: uppercase;
+  }
+
+  .sbai-alert {
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--report-sbai-border);
+    color: var(--report-sbai-text);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .sbai-value {
+    font-size: 72px;
+    line-height: 0.95;
+    color: var(--report-sbai-text);
+  }
+
+  .sbai-copy,
+  .sbai-footnote {
+    color: var(--report-sbai-muted);
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .detail-panel {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+      var(--report-panel);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .daily-list,
+  .word-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .daily-row,
+  .word-row {
+    display: grid;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .daily-row {
+    grid-template-columns: minmax(88px, 110px) minmax(0, 1fr) auto;
+  }
+
+  .daily-label,
+  .daily-value,
+  .word-rank,
+  .word-count {
+    font-family: "Rajdhani", "Noto Sans SC", sans-serif;
+  }
+
+  .daily-track,
+  .word-track {
+    height: 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+  }
+
+  .daily-fill,
+  .word-fill {
+    height: 100%;
+    border-radius: inherit;
+  }
+
+  .daily-fill {
+    background: linear-gradient(90deg, var(--report-accent), var(--report-line));
+  }
+
+  .word-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .word-rank {
+    min-width: 30px;
+    color: var(--report-muted);
+  }
+
+  .word-main {
+    display: grid;
+    gap: 8px;
+  }
+
+  .word-term {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .word-fill {
+    background: linear-gradient(90deg, var(--report-accent-pink), var(--report-accent-warm));
+  }
+
+  .empty-state {
+    padding: 32px 0;
+    color: var(--report-muted);
+    text-align: center;
+  }
+
+  .missing-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+  }
+
+  .missing-card {
+    max-width: 520px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .missing-title {
+    margin: 0 0 12px;
+    font-size: 30px;
+  }
+
+  .missing-copy {
+    margin: 0 0 18px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 980px) {
+    .hero,
+    .detail-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .report-shell {
+      padding: 16px;
+    }
+
+    .report-topbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    h1 {
+      font-size: 38px;
+      max-width: 100%;
+    }
+
+    .metric-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .panel-header {
+      display: grid;
+      gap: 6px;
+    }
+
+    .daily-row {
+      grid-template-columns: 1fr;
+    }
+
+    .word-row {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .word-count {
+      grid-column: 2;
+      justify-self: end;
+    }
+  }
+</style>

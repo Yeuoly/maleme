@@ -1,5 +1,12 @@
 import { env } from "cloudflare:workers";
-import type { LeaderboardEntry, LeaderboardSummary, Viewer } from "./types";
+import { createFallbackReportPayload, parseReportPayloadJson } from "./report";
+import type {
+  LeaderboardEntry,
+  LeaderboardProfile,
+  LeaderboardReportPayload,
+  LeaderboardSummary,
+  Viewer,
+} from "./types";
 
 type LeaderboardRow = Omit<LeaderboardEntry, "rank">;
 type SummaryRow = {
@@ -7,6 +14,14 @@ type SummaryRow = {
   totalEvents: number;
   totalTokens: number;
   averageSbai: number;
+};
+type PendingSubmissionRow = {
+  payloadJson: string;
+};
+type LeaderboardProfileRow = LeaderboardRow & {
+  rank: number;
+  reportPayloadJson: string | null;
+  submittedAt: number | null;
 };
 
 function getDatabase() {
@@ -102,14 +117,144 @@ export async function getViewerEntry(githubId: number) {
   return row;
 }
 
+export async function getLeaderboardProfile(login: string) {
+  const database = getDatabase();
+  const row = await database
+    .prepare(
+      `
+        WITH ranked_entries AS (
+          SELECT
+            github_id,
+            login,
+            display_name,
+            avatar_url,
+            profile_url,
+            profanity_count,
+            tokens,
+            sbai,
+            updated_at,
+            ROW_NUMBER() OVER (
+              ORDER BY profanity_count DESC, sbai DESC, tokens DESC, updated_at ASC
+            ) AS rank
+          FROM leaderboard_entries
+        )
+        SELECT
+          ranked_entries.rank AS rank,
+          ranked_entries.github_id AS githubId,
+          ranked_entries.login AS login,
+          ranked_entries.display_name AS displayName,
+          ranked_entries.avatar_url AS avatarUrl,
+          ranked_entries.profile_url AS profileUrl,
+          ranked_entries.profanity_count AS profanityCount,
+          ranked_entries.tokens AS tokens,
+          ranked_entries.sbai AS sbai,
+          ranked_entries.updated_at AS updatedAt,
+          latest.report_payload_json AS reportPayloadJson,
+          latest.created_at AS submittedAt
+        FROM ranked_entries
+        LEFT JOIN leaderboard_submissions AS latest
+          ON latest.id = (
+            SELECT id
+            FROM leaderboard_submissions
+            WHERE github_id = ranked_entries.github_id
+            ORDER BY created_at DESC
+            LIMIT 1
+          )
+        WHERE ranked_entries.login = ? COLLATE NOCASE
+      `,
+    )
+    .bind(login)
+    .first<LeaderboardProfileRow>();
+
+  if (!row) {
+    return null;
+  }
+
+  const fallback = createFallbackReportPayload({
+    profanityCount: row.profanityCount,
+    tokens: row.tokens,
+    sbai: row.sbai,
+  });
+
+  return {
+    rank: row.rank,
+    githubId: row.githubId,
+    login: row.login,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    profileUrl: row.profileUrl,
+    profanityCount: row.profanityCount,
+    tokens: row.tokens,
+    sbai: row.sbai,
+    updatedAt: row.updatedAt,
+    submittedAt: row.submittedAt ?? row.updatedAt,
+    report: parseReportPayloadJson(row.reportPayloadJson, fallback),
+  } satisfies LeaderboardProfile;
+}
+
+export async function createPendingSubmission(payload: LeaderboardReportPayload, ttlMs: number) {
+  const database = getDatabase();
+  const createdAt = Date.now();
+  const expiresAt = createdAt + ttlMs;
+  const token = crypto.randomUUID();
+
+  await database
+    .prepare(
+      `
+        INSERT INTO leaderboard_pending_submissions (
+          token,
+          payload_json,
+          created_at,
+          expires_at
+        ) VALUES (?, ?, ?, ?)
+      `,
+    )
+    .bind(token, JSON.stringify(payload), createdAt, expiresAt)
+    .run();
+
+  return token;
+}
+
+export async function consumePendingSubmission(token: string) {
+  const database = getDatabase();
+  const now = Date.now();
+  const row = await database
+    .prepare(
+      `
+        SELECT payload_json AS payloadJson
+        FROM leaderboard_pending_submissions
+        WHERE token = ?
+          AND expires_at > ?
+      `,
+    )
+    .bind(token, now)
+    .first<PendingSubmissionRow>();
+
+  await database
+    .prepare(
+      `
+        DELETE FROM leaderboard_pending_submissions
+        WHERE token = ?
+           OR expires_at <= ?
+      `,
+    )
+    .bind(token, now)
+    .run();
+
+  if (!row) {
+    return null;
+  }
+
+  return parseReportPayloadJson(row.payloadJson);
+}
+
 export async function upsertLeaderboardEntry(
   viewer: Viewer,
-  profanityCount: number,
-  tokens: number,
-  sbai: number,
+  submission: LeaderboardReportPayload,
 ) {
   const database = getDatabase();
   const updatedAt = Date.now();
+  const reportPayloadJson = JSON.stringify(submission);
 
   await database
     .prepare(
@@ -142,9 +287,9 @@ export async function upsertLeaderboardEntry(
       viewer.displayName,
       viewer.avatarUrl,
       viewer.profileUrl,
-      profanityCount,
-      tokens,
-      sbai,
+      submission.profanityCount,
+      submission.tokens,
+      submission.sbai,
       updatedAt,
     )
     .run();
@@ -157,10 +302,18 @@ export async function upsertLeaderboardEntry(
           profanity_count,
           tokens,
           sbai,
+          report_payload_json,
           created_at
-        ) VALUES (?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?)
       `,
     )
-    .bind(viewer.githubId, profanityCount, tokens, sbai, updatedAt)
+    .bind(
+      viewer.githubId,
+      submission.profanityCount,
+      submission.tokens,
+      submission.sbai,
+      reportPayloadJson,
+      updatedAt,
+    )
     .run();
 }
