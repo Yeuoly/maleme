@@ -52,17 +52,16 @@ jobs:
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: web
           packageManager: pnpm
-          command: d1 migrations apply maleme-leaderboard --remote --env production
+          command: d1 migrations apply maleme-leaderboard --remote
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          environment: production
           workingDirectory: web
           packageManager: pnpm
-          command: deploy --env production
+          command: deploy
           secrets: |
             GITHUB_CLIENT_ID
             GITHUB_CLIENT_SECRET
