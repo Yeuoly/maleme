@@ -1,4 +1,4 @@
-import { defineConfig } from "astro/config";
+import { defineConfig, sessionDrivers } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
@@ -6,6 +6,9 @@ export default defineConfig({
   adapter: cloudflare({
     remoteBindings: false,
   }),
+  session: {
+    driver: sessionDrivers.null(),
+  },
   security: {
     checkOrigin: false,
   },
