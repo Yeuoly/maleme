@@ -1,6 +1,6 @@
 {
   "name": "maleme",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Profanity analytics CLI for local coding-agent histories.",
   "license": "WTFPL",
   "type": "module",
@@ -18,10 +18,10 @@
     "url": "git+https://github.com/Yeuoly/maleme.git"
   },
   "optionalDependencies": {
-    "maleme-darwin-arm64": "0.1.0",
-    "maleme-darwin-x64": "0.1.0",
-    "maleme-linux-arm64": "0.1.0",
-    "maleme-linux-x64": "0.1.0",
-    "maleme-win32-x64": "0.1.0"
+    "maleme-darwin-arm64": "0.1.1",
+    "maleme-darwin-x64": "0.1.1",
+    "maleme-linux-arm64": "0.1.1",
+    "maleme-linux-x64": "0.1.1",
+    "maleme-win32-x64": "0.1.1"
   }
 }
