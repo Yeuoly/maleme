@@ -18,11 +18,6 @@ jobs:
       run:
         working-directory: web
 
-    env:
-      GITHUB_CLIENT_ID: ${{ secrets.MALEME_GITHUB_CLIENT_ID }}
-      GITHUB_CLIENT_SECRET: ${{ secrets.MALEME_GITHUB_CLIENT_SECRET }}
-      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,7 +57,3 @@ jobs:
           workingDirectory: web
           packageManager: pnpm
           command: deploy
-          secrets: |
-            GITHUB_CLIENT_ID
-            GITHUB_CLIENT_SECRET
-            SESSION_SECRET
