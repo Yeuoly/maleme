@@ -1,6 +1,6 @@
 {
   "name": "maleme-linux-arm64",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Linux arm64 binary for maleme.",
   "license": "WTFPL",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "maleme-darwin-arm64",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "macOS arm64 binary for maleme.",
   "license": "WTFPL",
   "repository": {

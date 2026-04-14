@@ -196,6 +196,7 @@ The repository includes a GitHub Actions workflow at `.github/workflows/publish-
 
 For the repeatable release checklist, see:
 
+- [docs/release-sop.md](/Users/zhsama/github/others/maleme/docs/release-sop.md)
 - [docs/npmjs-publish-sop.md](/Users/zhsama/github/others/maleme/docs/npmjs-publish-sop.md)
 
 Release steps:
