@@ -23,6 +23,7 @@ const title = profile ? `${profile.displayName} - maleme leaderboard` : "maleme 
 const description = profile ? `${profile.displayName} 的 maleme 词频报告` : "maleme leaderboard";
 const headlineHtml = report ? getReportHeadlineHtml(report.rangeStart, report.rangeEnd, report.profanityCount) : "maleme leaderboard";
 const shareUrl = profile ? new URL(getSharePath(profile.githubId), getAppUrl(Astro.url)).toString() : "";
+const showSubmittedShareModal = Astro.url.searchParams.get("state") === "submitted";
 const twitterShareUrl = profile
   ? buildTwitterIntentUrl(
     `${profile.displayName} 在 maleme leaderboard 排名 #${profile.rank}，SBAI ${report?.sbai.toFixed(2) ?? "0.00"}`,
@@ -120,6 +121,39 @@ const wordCloudJson = JSON.stringify((report?.wordCounts ?? []).slice(0, 32).map
           </button>
         </div>
       </ReportScreen>
+      <dialog
+        class="share-modal"
+        id="share-modal"
+        data-open-on-load={showSubmittedShareModal ? "true" : "false"}
+      >
+        <form method="dialog" class="share-modal-card">
+          <button type="submit" class="share-modal-close" aria-label="关闭分享弹窗">关闭</button>
+          <p class="share-modal-kicker">提交成功</p>
+          <h2 class="share-modal-title">分享到 X</h2>
+          <p class="share-modal-copy">
+            排行榜已经更新，分享 SBAI 指数。
+          </p>
+          <div class="share-modal-actions">
+            <a
+              href={twitterShareUrl}
+              target="_blank"
+              rel="noreferrer"
+              class="submit-button twitter-button"
+              id="share-modal-twitter"
+            >
+              分享到 Twitter
+            </a>
+            <button
+              type="button"
+              class="submit-button ghost-button share-modal-copy-button"
+              id="share-modal-copy-button"
+              data-share-url={shareUrl}
+            >
+              复制分享链接
+            </button>
+          </div>
+        </form>
+      </dialog>
     ) : (
       <main class="missing-shell">
         <section class="surface missing-card">
@@ -134,39 +168,83 @@ const wordCloudJson = JSON.stringify((report?.wordCounts ?? []).slice(0, 32).map
 
 <script>
   const shareButton = document.getElementById("share-button");
-  shareButton?.addEventListener("click", async () => {
-    const shareUrl = shareButton.dataset.shareUrl;
+  const shareModal = document.getElementById("share-modal");
+  const shareModalCopyButton = document.getElementById("share-modal-copy-button");
+  const shareModalTwitterButton = document.getElementById("share-modal-twitter");
+
+  async function copyShareUrl(button) {
+    const shareUrl = button?.dataset.shareUrl;
     if (!shareUrl) {
-      return;
+      return false;
     }
+
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        shareButton.textContent = "已复制";
-        window.setTimeout(() => {
-          shareButton.textContent = "复制分享链接";
-        }, 1800);
-        return;
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = shareUrl;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "absolute";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
       }
-      const textarea = document.createElement("textarea");
-      textarea.value = shareUrl;
-      textarea.setAttribute("readonly", "");
-      textarea.style.position = "absolute";
-      textarea.style.left = "-9999px";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      shareButton.textContent = "已复制";
+
+      const originalText = button.textContent;
+      button.textContent = "已复制";
       window.setTimeout(() => {
-        shareButton.textContent = "复制分享链接";
+        button.textContent = originalText;
       }, 1800);
+      return true;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        return;
+        return false;
       }
+      return false;
     }
+  }
+
+  shareModalCopyButton?.addEventListener("click", async () => {
+    await copyShareUrl(shareModalCopyButton);
   });
+
+  shareButton?.addEventListener("click", async () => {
+    await copyShareUrl(shareButton);
+  });
+
+  const supportsDialog =
+    typeof HTMLDialogElement !== "undefined" &&
+    shareModal instanceof HTMLDialogElement;
+
+  if (supportsDialog && shareModal.dataset.openOnLoad === "true") {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("state");
+    window.history.replaceState({}, "", nextUrl);
+
+    if (typeof shareModal.showModal === "function") {
+      shareModal.showModal();
+    } else {
+      shareModal.setAttribute("open", "");
+    }
+
+    shareModal.addEventListener("click", (event) => {
+      const rect = shareModal.getBoundingClientRect();
+      const isBackdropClick =
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom;
+
+      if (isBackdropClick) {
+        shareModal.close();
+      }
+    });
+
+    shareModalTwitterButton?.focus();
+  }
 </script>
 
 <style>
@@ -263,6 +341,85 @@ const wordCloudJson = JSON.stringify((report?.wordCounts ?? []).slice(0, 32).map
     box-shadow:
       0 20px 36px rgba(29, 155, 240, 0.38),
       inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  }
+
+  .share-modal {
+    width: min(460px, calc(100vw - 24px));
+    margin: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .share-modal::backdrop {
+    background: rgba(8, 10, 18, 0.64);
+    backdrop-filter: blur(8px);
+  }
+
+  .share-modal-card {
+    position: relative;
+    display: grid;
+    gap: 14px;
+    padding: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+      rgba(18, 12, 16, 0.92);
+    box-shadow:
+      0 28px 80px rgba(5, 7, 12, 0.42),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .share-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+  }
+
+  .share-modal-kicker {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffb86c;
+  }
+
+  .share-modal-title {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.05;
+    color: #ffffff;
+  }
+
+  .share-modal-copy {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .share-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .share-modal-copy-button {
+    color: #ffffff;
   }
 
   .missing-shell {
