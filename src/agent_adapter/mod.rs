@@ -1,5 +1,6 @@
 mod claude;
 mod codex;
+mod cursor;
 mod error;
 mod normalize;
 mod opencode;
@@ -13,6 +14,7 @@ use futures::{Stream, TryStreamExt, stream};
 
 pub use claude::ClaudeAdapter;
 pub use codex::CodexAdapter;
+pub use cursor::CursorAdapter;
 pub use error::AdapterError;
 pub use opencode::OpenCodeAdapter;
 
@@ -21,6 +23,7 @@ pub enum AdapterKind {
     Codex,
     Claude,
     OpenCode,
+    Cursor,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,6 +47,7 @@ pub struct UnifiedAgentAdapter {
     codex: CodexAdapter,
     claude: ClaudeAdapter,
     opencode: OpenCodeAdapter,
+    cursor: CursorAdapter,
 }
 
 impl UnifiedAgentAdapter {
@@ -57,6 +61,7 @@ impl UnifiedAgentAdapter {
             codex: CodexAdapter::new(home.as_ref()),
             claude: ClaudeAdapter::new(home.as_ref()),
             opencode: OpenCodeAdapter::new(home.as_ref()),
+            cursor: CursorAdapter::new(home.as_ref()),
         }
     }
 
@@ -64,18 +69,23 @@ impl UnifiedAgentAdapter {
         codex_path: impl Into<PathBuf>,
         claude_path: impl Into<PathBuf>,
         opencode_path: impl Into<PathBuf>,
+        cursor_path: impl Into<PathBuf>,
     ) -> Self {
         Self {
             codex: CodexAdapter::from_path(codex_path),
             claude: ClaudeAdapter::from_path(claude_path),
             opencode: OpenCodeAdapter::from_path(opencode_path),
+            cursor: CursorAdapter::from_path(cursor_path),
         }
     }
 }
 
 impl AgentAdapter for UnifiedAgentAdapter {
     async fn check(&self) -> bool {
-        self.codex.check().await || self.claude.check().await || self.opencode.check().await
+        self.codex.check().await
+            || self.claude.check().await
+            || self.opencode.check().await
+            || self.cursor.check().await
     }
 
     async fn poll(&self) -> Result<UserMessageStream, AdapterError> {
@@ -91,6 +101,10 @@ impl AgentAdapter for UnifiedAgentAdapter {
 
         if self.opencode.check().await {
             messages.extend(self.opencode.poll().await?.try_collect::<Vec<_>>().await?);
+        }
+
+        if self.cursor.check().await {
+            messages.extend(self.cursor.poll().await?.try_collect::<Vec<_>>().await?);
         }
 
         messages.sort_by_key(|message| message.time);
@@ -110,6 +124,10 @@ impl AgentAdapter for UnifiedAgentAdapter {
 
         if self.opencode.check().await {
             total += self.opencode.tokens().await?;
+        }
+
+        if self.cursor.check().await {
+            total += self.cursor.tokens().await?;
         }
 
         Ok(total)
