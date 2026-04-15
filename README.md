@@ -123,7 +123,7 @@ Current canonical sources:
 
 The profanity lexicon is stored in:
 
-- [`data/profanity_lexicon.txt`](/Users/yeuoly/Documents/code/maleme/data/profanity_lexicon.txt)
+- [`data/profanity_lexicon.txt`](data/profanity_lexicon.txt)
 
 Format:
 
@@ -197,8 +197,8 @@ The repository includes a GitHub Actions workflow at `.github/workflows/publish-
 
 For the repeatable release checklist, see:
 
-- [docs/release-sop.md](/Users/zhsama/github/others/maleme/docs/release-sop.md)
-- [docs/npmjs-publish-sop.md](/Users/zhsama/github/others/maleme/docs/npmjs-publish-sop.md)
+- [docs/release-sop.md](docs/release-sop.md)
+- [docs/npmjs-publish-sop.md](docs/npmjs-publish-sop.md)
 
 Release steps:
 
