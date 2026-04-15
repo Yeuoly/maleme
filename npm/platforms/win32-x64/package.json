@@ -1,6 +1,6 @@
 {
   "name": "maleme-win32-x64",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Windows x64 binary for maleme.",
   "license": "WTFPL",
   "repository": {
