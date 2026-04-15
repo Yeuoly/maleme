@@ -233,6 +233,8 @@ struct ClaudeUserEvent {
 struct ClaudeProjectUserEvent {
     #[serde(default, rename = "isSidechain")]
     is_sidechain: bool,
+    #[serde(default, rename = "isMeta")]
+    is_meta: bool,
     timestamp: String,
     uuid: Option<String>,
     message: ClaudeProjectMessage,
@@ -240,7 +242,29 @@ struct ClaudeProjectUserEvent {
 
 #[derive(Debug, Deserialize)]
 struct ClaudeProjectMessage {
-    content: String,
+    content: serde_json::Value,
+}
+
+fn extract_user_text(content: &serde_json::Value) -> Option<String> {
+    match content {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Array(items) => {
+            let mut parts = Vec::new();
+            for item in items {
+                if item.get("type").and_then(|v| v.as_str()) == Some("text") {
+                    if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                        parts.push(text.to_string());
+                    }
+                }
+            }
+            if parts.is_empty() {
+                None
+            } else {
+                Some(parts.join("\n"))
+            }
+        }
+        _ => None,
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -416,9 +440,12 @@ fn parse_claude_user_message(
                     line: line_number,
                     source,
                 })?;
-            if event.is_sidechain {
+            if event.is_sidechain || event.is_meta {
                 return Ok(None);
             }
+            let Some(content) = extract_user_text(&event.message.content) else {
+                return Ok(None);
+            };
             let model = event
                 .uuid
                 .as_ref()
@@ -428,7 +455,7 @@ fn parse_claude_user_message(
                 log_file,
                 line_number,
                 event.timestamp,
-                event.message.content,
+                content,
                 model,
             );
         }
@@ -635,6 +662,35 @@ mod tests {
         assert_eq!(messages[0].model.as_deref(), Some("claude-3-7-sonnet"));
         assert_eq!(messages[1].text, "project only");
         assert_eq!(messages[1].model.as_deref(), Some("claude-3-5-haiku"));
+    }
+
+    #[tokio::test]
+    async fn handles_project_polymorphic_content_and_meta() {
+        let temp = tempdir().unwrap();
+        let projects = temp.path().join(".claude/projects/workspace");
+        fs::create_dir_all(&projects).unwrap();
+        fs::write(
+            projects.join("session.jsonl"),
+            concat!(
+                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:55.000Z\",\"uuid\":\"u1\",\"message\":{\"role\":\"user\",\"content\":\"plain string\"}}\n",
+                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:56.000Z\",\"uuid\":\"u2\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"t1\",\"type\":\"tool_result\",\"content\":\"tool output\"}]}}\n",
+                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:57.000Z\",\"uuid\":\"u3\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello from blocks\"}]}}\n",
+                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:58.000Z\",\"isMeta\":true,\"uuid\":\"u4\",\"message\":{\"role\":\"user\",\"content\":\"<command-name>/clear</command-name>\"}}\n",
+            ),
+        )
+        .unwrap();
+
+        let messages = ClaudeAdapter::new(temp.path())
+            .poll()
+            .await
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await
+            .unwrap();
+
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].text, "plain string");
+        assert_eq!(messages[1].text, "hello from blocks");
     }
 
     #[tokio::test]
