@@ -3,7 +3,9 @@ order: 1
 title: "NULL"
 code: "NULL"
 summary: "The smiling empty parameter that liquefies every contract in the name of flexibility."
+summaryZh: "那个笑眯眯的空值参数，嘴上说着灵活，手上把所有契约都化成一滩烂泥。"
 omen: "Today it will mark one more required field optional, then act surprised when production discovers the missing shape."
+omenZh: "今天它会再把一个必填字段改成可空，然后等线上炸出缺字段，再装作很惊讶。"
 ---
 
 ## The Sin

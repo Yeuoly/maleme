@@ -3,7 +3,9 @@ order: 8
 title: "UNITED TYPES!"
 code: "UNITED TYPES!"
 summary: "The parliament of endless unions where every shape gets a vote and no branch gets resolved."
+summaryZh: "那个没完没了的联合类型议会，什么形状都要掺一脚，最后没有一个分支真正被收束。"
 omen: "Today it will add two more unions to one broken type and call the explosion 'expressive.'"
+omenZh: "今天它会往一个已经炸开的类型里再加两个 union，然后把这场爆炸叫做 expressive。"
 ---
 
 ## The Sin

@@ -11,7 +11,9 @@ const tarot = defineCollection({
     title: z.string(),
     code: z.string(),
     summary: z.string(),
+    summaryZh: z.string(),
     omen: z.string(),
+    omenZh: z.string(),
   }),
 });
 

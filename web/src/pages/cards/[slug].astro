@@ -5,7 +5,7 @@ import { render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import { getI18n, resolveLocale } from "../../lib/i18n";
-import { getTarotCard, listTarotCards, getTarotCardHref } from "../../lib/tarot";
+import { getTarotCard, listTarotCards, getTarotCardHref, getTarotCardCopy } from "../../lib/tarot";
 
 const slug = Astro.params.slug ?? "";
 const locale = resolveLocale(Astro);
@@ -20,15 +20,16 @@ if (!card) {
 const rendered = card ? await render(card) : null;
 const Content = rendered?.Content;
 const otherCards = allCards.filter((entry) => entry.id !== slug).slice(0, 5);
+const cardCopy = card ? getTarotCardCopy(card, locale) : null;
 ---
 
 <BaseLayout
-  title={card ? `${card.data.title} | ${t.tarot.pageTitle}` : t.tarot.pageTitle}
-  description={card ? card.data.summary : t.tarot.pageDescription}
+  title={cardCopy ? `${cardCopy.title} | ${t.tarot.pageTitle}` : t.tarot.pageTitle}
+  description={cardCopy ? cardCopy.summary : t.tarot.pageDescription}
   lang={locale}
 >
   {
-    card && Content ? (
+    card && Content && cardCopy ? (
       <main class="shell">
         <SiteHeader
           active="tarot"
@@ -38,10 +39,10 @@ const otherCards = allCards.filter((entry) => entry.id !== slug).slice(0, 5);
         />
 
         <section class="surface card-hero">
-          <div class="card-code">{card.data.code}</div>
-          <h1 class="card-title">{card.data.title}</h1>
-          <p class="card-summary">{card.data.summary}</p>
-          <div class="card-omen">{card.data.omen}</div>
+          <div class="card-code">{cardCopy.code}</div>
+          <h1 class="card-title">{cardCopy.title}</h1>
+          <p class="card-summary">{cardCopy.summary}</p>
+          <div class="card-omen">{cardCopy.omen}</div>
         </section>
 
         <div class="content-grid">
@@ -53,15 +54,18 @@ const otherCards = allCards.filter((entry) => entry.id !== slug).slice(0, 5);
             <h2 class="section-title">{t.tarot.moreCards}</h2>
             <div class="side-list">
               {
-                otherCards.map((entry) => (
+                otherCards.map((entry) => {
+                  const entryCopy = getTarotCardCopy(entry, locale);
+
+                  return (
                   <a href={getTarotCardHref(entry)} class="side-link">
-                    <span class="side-link-code">{entry.data.code}</span>
+                    <span class="side-link-code">{entryCopy.code}</span>
                     <span class="side-link-body">
-                      <span class="side-link-title">{entry.data.title}</span>
-                      <span class="side-link-summary">{entry.data.summary}</span>
+                      <span class="side-link-title">{entryCopy.title}</span>
+                      <span class="side-link-summary">{entryCopy.summary}</span>
                     </span>
                   </a>
-                ))
+                )})
               }
             </div>
           </aside>

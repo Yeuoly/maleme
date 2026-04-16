@@ -3,7 +3,9 @@ order: 6
 title: "DELETER"
 code: "DELETER"
 summary: "The opportunist who fixes red tests by deleting the witness."
+summaryZh: "那个靠删除证人来修红测的投机分子，测试一红，它先想的永远不是修逻辑。"
 omen: "Today it will see one failing assertion, remove the whole file, and report a cleaner test suite."
+omenZh: "今天它会看到一条失败断言，直接把整个测试文件删掉，然后宣布测试套件更干净了。"
 ---
 
 ## The Sin

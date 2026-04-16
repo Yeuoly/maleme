@@ -3,7 +3,9 @@ order: 9
 title: "HASHMAP"
 code: "HASHMAP"
 summary: "The shapeless bag of keys that eats every domain model and returns a bucket of maybe."
+summaryZh: "那个没有领域模型、只有一麻袋 key 的黑洞，什么实体丢进去，出来都只剩一桶 maybe。"
 omen: "Today it will turn one meaningful entity into a map of mystery strings and expect you to infer the rest."
+omenZh: "今天它会把一个有明确语义的实体压扁成一张神秘字符串 map，然后等你自己脑补剩下的结构。"
 ---
 
 ## The Sin

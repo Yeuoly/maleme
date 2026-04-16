@@ -3,7 +3,9 @@ order: 10
 title: "TURNER"
 code: "TURNER"
 summary: "The mapper-addict that cannot touch a value without spinning it through three helper layers first."
+summaryZh: "那个对 mapper 上瘾的家伙，任何值不过三层 helper 来回倒腾一遍都觉得浑身难受。"
 omen: "Today it will wrap one trivial field copy in two converters and call the journey architecture."
+omenZh: "今天它会把一次平平无奇的字段拷贝包进两个 converter 里，然后把这段路程称为架构。"
 ---
 
 ## The Sin

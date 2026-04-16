@@ -3,7 +3,9 @@ order: 11
 title: "DOUZHUer"
 code: "DOUZ"
 summary: "The blanket of try-catch blocks that muffles every crash into one more useless log line."
+summaryZh: "那个满屏 try-catch 的罩子，把每一次真正的崩溃都闷成又一条毫无用处的日志。"
 omen: "Today it will catch five real exceptions, print five fake diagnostics, and preserve exactly zero debugging value."
+omenZh: "今天它会 catch 五个真异常，打印五条假诊断信息，并且精准保留零调试价值。"
 ---
 
 ## The Sin

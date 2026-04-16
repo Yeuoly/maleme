@@ -2,6 +2,7 @@
 import type { CollectionEntry } from "astro:content";
 import SiteHeader from "./SiteHeader.astro";
 import { getI18n, type Locale } from "../lib/i18n";
+import { getTarotCardCopy } from "../lib/tarot";
 
 type Props = {
   cards: CollectionEntry<"tarot">[];
@@ -12,13 +13,11 @@ const { locale } = Astro.props;
 const t = getI18n(locale);
 const cards = [...Astro.props.cards].sort((left, right) => left.data.order - right.data.order);
 const initialCard = cards[0];
+const initialCopy = getTarotCardCopy(initialCard, locale);
 const cardsJson = JSON.stringify(
   cards.map((card) => ({
     slug: card.id,
-    code: card.data.code,
-    title: card.data.title,
-    summary: card.data.summary,
-    omen: card.data.omen,
+    ...getTarotCardCopy(card, locale),
   })),
 ).replaceAll("</", "<\\/");
 ---
@@ -51,9 +50,9 @@ const cardsJson = JSON.stringify(
 
               <span class="draw-card-face draw-card-back">
                 <span class="draw-result-label">{t.tarot.resultLabel}</span>
-                <span class="draw-result-code" id="draw-result-code">{initialCard.data.code}</span>
-                <span class="draw-result-title" id="draw-result-title">{initialCard.data.title}</span>
-                <span class="draw-result-omen" id="draw-result-omen">{initialCard.data.omen}</span>
+                <span class="draw-result-code" id="draw-result-code">{initialCopy.code}</span>
+                <span class="draw-result-title" id="draw-result-title">{initialCopy.title}</span>
+                <span class="draw-result-omen" id="draw-result-omen">{initialCopy.omen}</span>
               </span>
             </span>
           </button>

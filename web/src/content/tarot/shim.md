@@ -3,7 +3,9 @@ order: 5
 title: "SHIM"
 code: "SHIM"
 summary: "The compatibility idol that would rather preserve every fossil than delete a dead format."
+summaryZh: "那个兼容性邪教徒，宁可把所有历史化石都供起来，也不肯删掉一个早该死透的格式。"
 omen: "Today it will build one more adapter layer so the old mess can keep haunting the new system."
+omenZh: "今天它会再叠一层 adapter，让旧时代的烂账继续附身在新系统上。"
 ---
 
 ## The Sin

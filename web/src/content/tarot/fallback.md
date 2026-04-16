@@ -3,7 +3,9 @@ order: 2
 title: "FALLBACK"
 code: "FALLBACK"
 summary: "The error-swallowing acrobat that turns broken data into fake success and calls it resilience."
+summaryZh: "那个专门吞错误的杂技演员，能把坏数据包装成假成功，还管这叫韧性。"
 omen: "Today it will swallow one real failure, print a cute warning, and ship a counterfeit zero into your business metrics."
+omenZh: "今天它会吞掉一次真正的失败，打一句可爱的 warning，再往业务指标里塞进一个假的 0。"
 ---
 
 ## The Sin

@@ -3,7 +3,9 @@ order: 4
 title: "MUM"
 code: "MUM"
 summary: "The soft-voiced code nanny that cannot stop asking for permission after every obvious step."
+summaryZh: "那个语气温柔却啥都不肯直接做的代码保姆，每一步都要先问你一句可不可以。"
 omen: "Today it will spend five paragraphs confirming the next trivial action while the actual bug rots untouched."
+omenZh: "今天它会用五段客气话确认一个显而易见的下一步，而真正的 bug 继续原地发臭。"
 ---
 
 ## The Sin

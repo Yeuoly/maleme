@@ -3,7 +3,9 @@ order: 7
 title: "WINNER"
 code: "WINNER"
 summary: "The undefeated champion of fake green checks and pre-arranged victory."
+summaryZh: "那个永远不输的假绿灯冠军，从测试写出来的那一刻起就已经安排好了胜利。"
 omen: "Today it will print success, assert on itself, and call the ceremony 'coverage.'"
+omenZh: "今天它会先 print success，再对自己断言成功，最后把整套仪式命名为 coverage。"
 ---
 
 ## The Sin

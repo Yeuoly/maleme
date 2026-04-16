@@ -3,7 +3,9 @@ order: 3
 title: "NORM"
 code: "NORM"
 summary: "The compulsive string scrubber that normalizes meaning out of existence."
+summaryZh: "那个强迫症字符串清洗工，洗着洗着就把原本该保留的语义一并洗没了。"
 omen: "Today it will trim a value that should have been rejected, normalize a bug into silence, and call the cleanup 'safe.'"
+omenZh: "今天它会把本该直接报错的值 trim 掉，把 bug 正规化成沉默，再把这套操作命名为 safe。"
 ---
 
 ## The Sin
