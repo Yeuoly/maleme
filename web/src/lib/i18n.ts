@@ -172,9 +172,9 @@ const dictionaries: Record<Locale, Dictionary> = {
     },
     tarot: {
       pageTitle: "AI Tarot",
-      pageDescription: "The twelve sins of cursed agent code.",
+      pageDescription: "The thirteen sins of cursed agent code.",
       brandTitle: "AI Tarot",
-      brandSubtitle: "the twelve sins of cursed agent code",
+      brandSubtitle: "the thirteen sins of cursed agent code",
       kicker: "AI Tarot",
       heroTitle: "Draw your AI tarot.",
       heroCopy: "One pull, one sin. Tap the card and see which cursed habit is following you today.",
@@ -269,9 +269,9 @@ const dictionaries: Record<Locale, Dictionary> = {
     },
     tarot: {
       pageTitle: "AI 塔罗",
-      pageDescription: "AI 坏习惯十二宗罪。",
+      pageDescription: "AI 坏习惯十三宗罪。",
       brandTitle: "AI 塔罗",
-      brandSubtitle: "AI 坏习惯十二宗罪",
+      brandSubtitle: "AI 坏习惯十三宗罪",
       kicker: "AI 塔罗",
       heroTitle: "抽一张你的塔罗吧！",
       heroCopy: "轻轻一点，看看今天缠上你的，到底是哪一种最让人血压上来的 AI 坏习惯。",
