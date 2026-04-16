@@ -15,6 +15,10 @@
 		{
 			"pattern": "leaderboard.sbai.uk",
 			"custom_domain": true
+		},
+		{
+			"pattern": "taluo.sbai.uk",
+			"custom_domain": true
 		}
 	],
 	"observability": {

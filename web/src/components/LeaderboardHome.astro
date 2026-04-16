@@ -1,0 +1,88 @@
+---
+import LeaderboardTable from "./LeaderboardTable.astro";
+import SiteHeader from "./SiteHeader.astro";
+import StatsStrip from "./StatsStrip.astro";
+import type { LeaderboardEntry, LeaderboardSortDirection, LeaderboardSortKey } from "../lib/types";
+
+type Props = {
+  entries: LeaderboardEntry[];
+  sortKey: LeaderboardSortKey;
+  sortDirection: LeaderboardSortDirection;
+  stats: { label: string; value: string | number; tone: "red" | "teal" | "gold" }[];
+  submittedRank: number;
+  submittedState: boolean;
+};
+
+const { entries, sortKey, sortDirection, stats, submittedRank, submittedState } = Astro.props;
+---
+
+<main class="shell">
+  <SiteHeader active="leaderboard" title="maleme leaderboard" subtitle="rank the finest AI rage" />
+
+  <section class="intro">
+    {
+      submittedState && submittedRank > 0 && (
+        <div class="submission-banner surface" data-submission-banner>
+          <div class="submission-banner-kicker">Submission saved</div>
+          <div class="submission-banner-title">You are now ranked #{submittedRank} here.</div>
+        </div>
+      )
+    }
+    <StatsStrip items={stats} />
+  </section>
+
+  <LeaderboardTable entries={entries} sortKey={sortKey} sortDirection={sortDirection} />
+</main>
+
+<script>
+  const submissionBanner = document.querySelector("[data-submission-banner]");
+
+  if (submissionBanner) {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("state");
+    nextUrl.searchParams.delete("rank");
+    window.history.replaceState({}, "", nextUrl);
+  }
+</script>
+
+<style>
+  .intro {
+    margin-bottom: 18px;
+    display: block;
+  }
+
+  .submission-banner {
+    margin-bottom: 12px;
+    padding: 16px 18px;
+    border-color: rgba(15, 163, 177, 0.24);
+    background:
+      linear-gradient(135deg, rgba(15, 163, 177, 0.12), rgba(255, 183, 3, 0.12)),
+      rgba(255, 255, 255, 0.94);
+  }
+
+  .submission-banner-kicker {
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #0d7a84;
+  }
+
+  .submission-banner-title {
+    font-size: 22px;
+    line-height: 1.15;
+    font-weight: 900;
+    color: #132033;
+  }
+
+  @media (max-width: 980px) {
+    .intro {
+      margin-bottom: 16px;
+    }
+
+    .submission-banner-title {
+      font-size: 20px;
+    }
+  }
+</style>

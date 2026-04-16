@@ -1,15 +1,17 @@
 ---
 export const prerender = false;
 
-import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import LeaderboardTable from "../components/LeaderboardTable.astro";
-import StatsStrip from "../components/StatsStrip.astro";
+import LeaderboardHome from "../components/LeaderboardHome.astro";
+import TarotHome from "../components/TarotHome.astro";
 import { getLeaderboardSummary, hasDatabaseBinding, listLeaderboard } from "../lib/db";
+import { listTarotCards } from "../lib/tarot";
 import type { LeaderboardSortDirection, LeaderboardSortKey } from "../lib/types";
 
 const sortValue = Astro.url.searchParams.get("sort");
 const directionValue = Astro.url.searchParams.get("dir");
+const tarotPreview = Astro.url.searchParams.get("view") === "tarot";
+const isTarotHost = Astro.url.hostname === "taluo.sbai.uk" || tarotPreview;
 const submittedState = Astro.url.searchParams.get("state") === "submitted";
 const submittedRankValue = Number(Astro.url.searchParams.get("rank"));
 const submittedRank = Number.isFinite(submittedRankValue) && submittedRankValue > 0
@@ -21,7 +23,8 @@ const sortKey: LeaderboardSortKey =
     : "profanityCount";
 const sortDirection: LeaderboardSortDirection = directionValue === "asc" ? "asc" : "desc";
 
-const databaseReady = hasDatabaseBinding();
+const tarotCards = isTarotHost ? await listTarotCards() : [];
+const databaseReady = !isTarotHost && hasDatabaseBinding();
 const entries = databaseReady ? await listLeaderboard(50, sortKey, sortDirection) : [];
 const summary = databaseReady
   ? await getLeaderboardSummary()
@@ -39,106 +42,23 @@ const stats = [
 ];
 ---
 
-<BaseLayout title="maleme leaderboard" description="maleme leaderboard">
-  <main class="shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">M</div>
-        <div class="brand-copy">
-          <div class="brand-title">maleme leaderboard</div>
-        </div>
-      </div>
-      <a class="repo-link" href="https://github.com/Yeuoly/maleme" target="_blank" rel="noreferrer">
-        <Image
-          src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-          alt="GitHub"
-          class="repo-avatar"
-          width={42}
-          height={42}
-        />
-      </a>
-    </header>
-
-    <section class="intro">
-      {
-        submittedState && submittedRank > 0 && (
-          <div class="submission-banner surface" data-submission-banner>
-            <div class="submission-banner-kicker">Submission saved</div>
-            <div class="submission-banner-title">You are now ranked #{submittedRank} here.</div>
-          </div>
-        )
-      }
-      <StatsStrip items={stats} />
-    </section>
-
-    <LeaderboardTable entries={entries} sortKey={sortKey} sortDirection={sortDirection} />
-  </main>
+<BaseLayout
+  title={isTarotHost ? "AI Tarot" : "maleme leaderboard"}
+  description={isTarotHost ? "AI Tarot of bad agent habits" : "maleme leaderboard"}
+  lang="zh-CN"
+>
+  {
+    isTarotHost ? (
+      <TarotHome cards={tarotCards} />
+    ) : (
+      <LeaderboardHome
+        entries={entries}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        stats={stats}
+        submittedState={submittedState}
+        submittedRank={submittedRank}
+      />
+    )
+  }
 </BaseLayout>
-
-<script>
-  const submissionBanner = document.querySelector("[data-submission-banner]");
-
-  if (submissionBanner) {
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.delete("state");
-    nextUrl.searchParams.delete("rank");
-    window.history.replaceState({}, "", nextUrl);
-  }
-</script>
-
-<style>
-  .intro {
-    margin-bottom: 18px;
-    display: block;
-  }
-
-  .submission-banner {
-    margin-bottom: 12px;
-    padding: 16px 18px;
-    border-color: rgba(15, 163, 177, 0.24);
-    background:
-      linear-gradient(135deg, rgba(15, 163, 177, 0.12), rgba(255, 183, 3, 0.12)),
-      rgba(255, 255, 255, 0.94);
-  }
-
-  .submission-banner-kicker {
-    margin-bottom: 6px;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #0d7a84;
-  }
-
-  .submission-banner-title {
-    font-size: 22px;
-    line-height: 1.15;
-    font-weight: 900;
-    color: #132033;
-  }
-
-  .repo-link {
-    width: 42px;
-    height: 42px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-  }
-
-  .repo-avatar {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  @media (max-width: 980px) {
-    .intro {
-      margin-bottom: 16px;
-    }
-
-    .submission-banner-title {
-      font-size: 20px;
-    }
-  }
-</style>

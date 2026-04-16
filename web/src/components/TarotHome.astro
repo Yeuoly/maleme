@@ -1,0 +1,274 @@
+---
+import type { CollectionEntry } from "astro:content";
+import SiteHeader from "./SiteHeader.astro";
+
+type Props = {
+  cards: CollectionEntry<"tarot">[];
+};
+
+const cards = [...Astro.props.cards].sort((left, right) => left.data.order - right.data.order);
+const cardsJson = JSON.stringify(
+  cards.map((card) => ({
+    slug: card.slug,
+    code: card.data.code,
+    title: card.data.title,
+    summary: card.data.summary,
+    omen: card.data.omen,
+  })),
+).replaceAll("</", "<\\/");
+---
+
+<main class="shell">
+  <SiteHeader active="tarot" title="AI Tarot" subtitle="the twelve sins of cursed agent code" />
+
+  <section class="surface hero">
+    <div class="hero-kicker">AI Tarot</div>
+    <h1 class="hero-title">抽一张你想要的塔罗牌吧！看看今天的运势！</h1>
+    <p class="hero-copy">
+      十二张牌，十二宗罪。今天你抽到的，也许就是那个最让你火大的 AI 坏习惯。
+    </p>
+    <div class="hero-actions">
+      <button type="button" class="draw-button" id="draw-button">Draw a Card</button>
+      <a class="hero-link" href="#deck">Open the Deck</a>
+    </div>
+    <a class="draw-result" id="draw-result" href={`/cards/${cards[0]?.slug ?? ""}`}>
+      <span class="draw-result-code">{cards[0]?.data.code}</span>
+      <span class="draw-result-title">{cards[0]?.data.title}</span>
+      <span class="draw-result-omen">{cards[0]?.data.omen}</span>
+    </a>
+  </section>
+
+  <section class="surface deck" id="deck">
+    <div class="deck-header">
+      <div>
+        <h2 class="section-title">The Deck</h2>
+        <p class="deck-copy">Pick your curse. Every card is rendered from its own markdown file.</p>
+      </div>
+    </div>
+
+    <div class="deck-grid">
+      {
+        cards.map((card) => (
+          <a
+            href={`/cards/${card.slug}`}
+            class="tarot-card"
+            data-tarot-card
+            data-slug={card.slug}
+            data-code={card.data.code}
+            data-title={card.data.title}
+            data-summary={card.data.summary}
+            data-omen={card.data.omen}
+          >
+            <div class="tarot-card-code">{card.data.code}</div>
+            <h3 class="tarot-card-title">{card.data.title}</h3>
+            <p class="tarot-card-summary">{card.data.summary}</p>
+            <div class="tarot-card-footer">Read the omen</div>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</main>
+
+<script define:vars={{ cardsJson }}>
+  const cards = JSON.parse(cardsJson);
+  const drawButton = document.getElementById("draw-button");
+  const drawResult = document.getElementById("draw-result");
+  const cardNodes = Array.from(document.querySelectorAll("[data-tarot-card]"));
+
+  function paint(card) {
+    if (!drawResult) {
+      return;
+    }
+
+    drawResult.href = `/cards/${card.slug}`;
+    drawResult.querySelector(".draw-result-code").textContent = card.code;
+    drawResult.querySelector(".draw-result-title").textContent = card.title;
+    drawResult.querySelector(".draw-result-omen").textContent = card.omen;
+
+    for (const node of cardNodes) {
+      node.classList.toggle("is-drawn", node.getAttribute("data-slug") === card.slug);
+    }
+  }
+
+  drawButton?.addEventListener("click", () => {
+    const card = cards[Math.floor(Math.random() * cards.length)];
+    paint(card);
+  });
+</script>
+
+<style>
+  .hero,
+  .deck {
+    padding: 22px;
+  }
+
+  .hero {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 18px;
+    background:
+      radial-gradient(circle at top right, rgba(255, 91, 97, 0.12), transparent 32%),
+      radial-gradient(circle at bottom left, rgba(255, 183, 3, 0.14), transparent 28%),
+      rgba(255, 255, 255, 0.88);
+  }
+
+  .hero-kicker {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .hero-title {
+    margin: 0;
+    font-size: clamp(28px, 4vw, 46px);
+    line-height: 1.05;
+  }
+
+  .hero-copy,
+  .deck-copy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .draw-button,
+  .hero-link {
+    min-height: 48px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .draw-button {
+    border: 0;
+    color: #ffffff;
+    background: linear-gradient(135deg, #d62839, #ff5b61);
+    box-shadow: 0 18px 34px rgba(214, 40, 57, 0.22);
+  }
+
+  .hero-link {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.76);
+  }
+
+  .draw-result {
+    display: grid;
+    gap: 4px;
+    padding: 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 91, 97, 0.22);
+    background: rgba(255, 255, 255, 0.82);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .draw-result-code {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .draw-result-title {
+    font-size: 24px;
+    font-weight: 900;
+  }
+
+  .draw-result-omen {
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .deck-header {
+    margin-bottom: 16px;
+  }
+
+  .deck-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .tarot-card {
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 251, 255, 0.86)),
+      rgba(255, 255, 255, 0.88);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .tarot-card:hover,
+  .tarot-card.is-drawn {
+    transform: translateY(-2px);
+    border-color: rgba(255, 91, 97, 0.34);
+    box-shadow: 0 20px 44px rgba(19, 32, 51, 0.1);
+  }
+
+  .tarot-card-code {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .tarot-card-title {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.05;
+  }
+
+  .tarot-card-summary {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .tarot-card-footer {
+    font-size: 12px;
+    font-weight: 900;
+    color: #0d7a84;
+  }
+
+  @media (max-width: 980px) {
+    .deck-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hero,
+    .deck {
+      padding: 18px;
+    }
+
+    .deck-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

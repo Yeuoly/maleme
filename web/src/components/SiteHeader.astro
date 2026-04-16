@@ -1,0 +1,148 @@
+---
+type NavKey = "leaderboard" | "tarot";
+
+type Props = {
+  active: NavKey;
+  title: string;
+  subtitle?: string;
+};
+
+const { active, title, subtitle } = Astro.props;
+
+const navItems: { key: NavKey; label: string; href: string }[] = [
+  { key: "leaderboard", label: "Leaderboard", href: "https://leaderboard.sbai.uk" },
+  { key: "tarot", label: "AI Tarot", href: "https://taluo.sbai.uk" },
+];
+---
+
+<header class="site-header">
+  <div class="brand">
+    <div class="brand-mark">M</div>
+    <div class="brand-copy">
+      <div class="brand-title">{title}</div>
+      {subtitle && <div class="brand-subtitle">{subtitle}</div>}
+    </div>
+  </div>
+
+  <nav class="site-nav" aria-label="Primary">
+    {
+      navItems.map((item) => (
+        <a href={item.href} class:list={["nav-chip", active === item.key && "is-active"]}>
+          {item.label}
+        </a>
+      ))
+    }
+  </nav>
+
+  <a class="repo-link" href="https://github.com/Yeuoly/maleme" target="_blank" rel="noreferrer" aria-label="GitHub repository">
+    <svg viewBox="0 0 16 16" aria-hidden="true" class="repo-icon">
+      <path
+        fill="currentColor"
+        d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
+        0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52
+        -.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07
+        -1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21
+        2.2.82a7.57 7.57 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82
+        1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01
+        2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+      />
+    </svg>
+  </a>
+</header>
+
+<style>
+  .site-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-3));
+    color: white;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    box-shadow: var(--shadow);
+  }
+
+  .brand-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .brand-title {
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .brand-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .site-nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .nav-chip {
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.76);
+    padding: 8px 10px;
+    border-radius: 8px;
+    transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+  }
+
+  .nav-chip.is-active {
+    color: var(--accent);
+    border-color: rgba(255, 91, 97, 0.34);
+    background: rgba(255, 91, 97, 0.1);
+  }
+
+  .repo-link {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    background: rgba(255, 255, 255, 0.82);
+    color: #24292f;
+  }
+
+  .repo-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 980px) {
+    .site-header {
+      grid-template-columns: 1fr;
+      justify-items: start;
+    }
+
+    .site-nav {
+      justify-content: flex-start;
+    }
+  }
+</style>

@@ -1,0 +1,198 @@
+---
+export const prerender = false;
+
+import { render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import { getTarotCard, listTarotCards, getTarotCardHref } from "../../lib/tarot";
+
+const slug = Astro.params.slug ?? "";
+const card = await getTarotCard(slug);
+const allCards = await listTarotCards();
+
+if (!card) {
+  Astro.response.status = 404;
+}
+
+const rendered = card ? await render(card) : null;
+const Content = rendered?.Content;
+const otherCards = allCards.filter((entry) => entry.slug !== slug).slice(0, 5);
+---
+
+<BaseLayout
+  title={card ? `${card.data.title} | AI Tarot` : "AI Tarot"}
+  description={card ? card.data.summary : "AI Tarot"}
+  lang="zh-CN"
+>
+  {
+    card && Content ? (
+      <main class="shell">
+        <SiteHeader active="tarot" title="AI Tarot" subtitle="the twelve sins of cursed agent code" />
+
+        <section class="surface card-hero">
+          <div class="card-code">{card.data.code}</div>
+          <h1 class="card-title">{card.data.title}</h1>
+          <p class="card-summary">{card.data.summary}</p>
+          <div class="card-omen">{card.data.omen}</div>
+        </section>
+
+        <div class="content-grid">
+          <article class="surface markdown-shell">
+            <Content />
+          </article>
+
+          <aside class="surface side-shell">
+            <h2 class="section-title">More Cards</h2>
+            <div class="side-list">
+              {
+                otherCards.map((entry) => (
+                  <a href={getTarotCardHref(entry)} class="side-link">
+                    <span class="side-link-code">{entry.data.code}</span>
+                    <span class="side-link-body">
+                      <span class="side-link-title">{entry.data.title}</span>
+                      <span class="side-link-summary">{entry.data.summary}</span>
+                    </span>
+                  </a>
+                ))
+              }
+            </div>
+          </aside>
+        </div>
+      </main>
+    ) : (
+      <main class="shell">
+        <SiteHeader active="tarot" title="AI Tarot" subtitle="the twelve sins of cursed agent code" />
+        <section class="surface missing-shell">
+          <h1 class="section-title">Card not found.</h1>
+          <a href="https://taluo.sbai.uk" class="back-link">Back to the deck</a>
+        </section>
+      </main>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .card-hero {
+    margin-bottom: 18px;
+    padding: 22px;
+    display: grid;
+    gap: 10px;
+    background:
+      radial-gradient(circle at top right, rgba(255, 91, 97, 0.12), transparent 32%),
+      radial-gradient(circle at bottom left, rgba(255, 183, 3, 0.14), transparent 28%),
+      rgba(255, 255, 255, 0.88);
+  }
+
+  .card-code {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .card-title {
+    margin: 0;
+    font-size: clamp(30px, 4vw, 48px);
+    line-height: 1.02;
+  }
+
+  .card-summary,
+  .card-omen {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .card-summary {
+    color: var(--text);
+  }
+
+  .card-omen {
+    color: var(--muted);
+  }
+
+  .markdown-shell,
+  .side-shell,
+  .missing-shell {
+    padding: 22px;
+  }
+
+  .markdown-shell :global(h2) {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+
+  .markdown-shell :global(p) {
+    margin: 0 0 16px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .markdown-shell :global(pre) {
+    margin: 0 0 18px;
+    padding: 16px;
+    overflow: auto;
+    border-radius: 8px;
+    background: #10151d;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .markdown-shell :global(code) {
+    font-family:
+      "SFMono-Regular", ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+  }
+
+  .side-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .side-link {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.74);
+    text-decoration: none;
+  }
+
+  .side-link-code {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .side-link-body {
+    display: grid;
+    gap: 4px;
+  }
+
+  .side-link-title {
+    font-weight: 800;
+  }
+
+  .side-link-summary {
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 14px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    min-height: 44px;
+    padding: 0 16px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.78);
+    text-decoration: none;
+  }
+</style>
