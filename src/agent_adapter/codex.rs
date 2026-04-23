@@ -100,7 +100,9 @@ impl CodexAdapter {
                     .get(&path)
                     .cloned()
                     .or_else(|| session_models.get(&canonicalize_lossy(&path)).cloned());
-                messages.extend(parse_session_file(&path, session_model)?);
+                if let Ok(msgs) = parse_session_file(&path, session_model) {
+                    messages.extend(msgs);
+                }
 
                 progress.inc(1);
             }
@@ -142,7 +144,9 @@ impl AgentAdapter for CodexAdapter {
                     .get(&path)
                     .cloned()
                     .or_else(|| session_models.get(&canonicalize_lossy(&path)).cloned());
-                messages.extend(parse_session_file(&path, session_model)?);
+                if let Ok(msgs) = parse_session_file(&path, session_model) {
+                    messages.extend(msgs);
+                }
             }
 
             Ok(messages)
@@ -204,14 +208,10 @@ fn parse_session_file(
     let mut current_model = session_model.and_then(|model| normalize_model_id(&model));
     let mut pending_message_indexes: Vec<usize> = Vec::new();
 
-    for (index, raw_line) in contents.lines().enumerate() {
-        let line_number = index + 1;
-        let raw: serde_json::Value =
-            serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
-                path: path.to_path_buf(),
-                line: line_number,
-                source,
-            })?;
+    for (_index, raw_line) in contents.lines().enumerate() {
+        let Ok(raw) = serde_json::from_str::<serde_json::Value>(raw_line) else {
+            continue; // skip bad JSON lines
+        };
         let line_type = raw.get("type").and_then(serde_json::Value::as_str);
 
         if line_type == Some("turn_context") {
@@ -239,15 +239,13 @@ fn parse_session_file(
                 .and_then(serde_json::Value::as_str)
                 == Some("user")
         {
-            let timestamp = required_string(&raw, &["timestamp"], path, line_number)?;
-            let datetime = OffsetDateTime::parse(timestamp, &Rfc3339).map_err(|source| {
-                AdapterError::InvalidTimestamp {
-                    path: path.to_path_buf(),
-                    line: line_number,
-                    value: timestamp.to_owned(),
-                    source,
-                }
-            })?;
+            // Skip lines with missing/invalid timestamp instead of failing
+            let Some(timestamp) = raw.get("timestamp").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let Ok(datetime) = OffsetDateTime::parse(timestamp, &Rfc3339) else {
+                continue; // skip invalid timestamps
+            };
             let content = raw
                 .get("payload")
                 .and_then(|payload| payload.get("content"))
@@ -302,15 +300,13 @@ fn parse_session_file(
         }
 
         if raw.get("git").is_some() && raw.get("timestamp").is_some() {
-            let timestamp = required_string(&raw, &["timestamp"], path, line_number)?;
-            let datetime = OffsetDateTime::parse(timestamp, &Rfc3339).map_err(|source| {
-                AdapterError::InvalidTimestamp {
-                    path: path.to_path_buf(),
-                    line: line_number,
-                    value: timestamp.to_owned(),
-                    source,
-                }
-            })?;
+            // Skip lines with missing/invalid timestamp instead of failing
+            let Some(timestamp) = raw.get("timestamp").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let Ok(datetime) = OffsetDateTime::parse(timestamp, &Rfc3339) else {
+                continue; // skip invalid timestamps
+            };
             legacy_timestamp_ms = (datetime.unix_timestamp_nanos() / 1_000_000) as i64;
         }
     }
@@ -610,22 +606,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fails_on_invalid_codex_json() {
+    async fn skips_invalid_lines_preserves_valid_lines() {
+        use futures::TryStreamExt;
         let temp = tempdir().unwrap();
         let sessions_dir = temp.path().join(".codex/sessions/2026/04/13");
         fs::create_dir_all(&sessions_dir).unwrap();
+        // Invalid timestamp line (skipped), then valid user message line
         fs::write(
             sessions_dir.join("rollout-1.jsonl"),
-            "{\"timestamp\":\"bad\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]}}\n",
+            "{\"timestamp\":\"bad\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"should be skipped\"}]}}\n{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"should be kept\"}]}\n",
         )
         .unwrap();
 
-        let error = match CodexAdapter::new(temp.path()).poll().await {
-            Ok(_) => panic!("expected codex poll to fail"),
-            Err(error) => error,
-        };
-
-        assert!(error.to_string().contains("invalid timestamp"));
+        let messages: Vec<_> = CodexAdapter::new(temp.path())
+            .poll()
+            .await
+            .expect("poll should succeed despite bad lines")
+            .try_collect()
+            .await
+            .expect("collect should succeed");
+        // Only valid line should be parsed
+        assert_eq!(messages.len(), 1);
+        assert!(messages[0].text.contains("should be kept"));
     }
 
     #[tokio::test]

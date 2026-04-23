@@ -87,7 +87,9 @@ impl ClaudeAdapter {
                         path: log_file.path.clone(),
                         source,
                     })?;
-            messages.extend(parse_claude_log_file(&log_file, &contents)?);
+            if let Ok(msgs) = parse_claude_log_file(&log_file, &contents) {
+                messages.extend(msgs);
+            }
 
             progress.inc(1);
         }
@@ -153,7 +155,9 @@ impl AgentAdapter for ClaudeAdapter {
                         path: log_file.path.clone(),
                         source,
                     })?;
-            messages.extend(parse_claude_log_file(&log_file, &contents)?);
+            if let Ok(msgs) = parse_claude_log_file(&log_file, &contents) {
+                messages.extend(msgs);
+            }
         }
 
         dedupe_messages(&mut messages);
@@ -516,7 +520,7 @@ fn parse_claude_log_file(
     contents: &str,
 ) -> Result<Vec<UserMessage>, AdapterError> {
     let project_models = if log_file.kind == ClaudeLogKind::Project {
-        Some(collect_project_models(log_file, contents)?)
+        Some(collect_project_models(log_file, contents))
     } else {
         None
     };
@@ -524,8 +528,8 @@ fn parse_claude_log_file(
 
     for (index, raw_line) in contents.lines().enumerate() {
         let line_number = index + 1;
-        if let Some(message) =
-            parse_claude_user_message(log_file, raw_line, line_number, project_models.as_ref())?
+        if let Ok(Some(message)) =
+            parse_claude_user_message(log_file, raw_line, line_number, project_models.as_ref())
         {
             messages.push(message);
         }
@@ -535,30 +539,23 @@ fn parse_claude_log_file(
 }
 
 fn collect_project_models(
-    log_file: &ClaudeLogFile,
+    _log_file: &ClaudeLogFile,
     contents: &str,
-) -> Result<BTreeMap<String, String>, AdapterError> {
+) -> BTreeMap<String, String> {
     let mut models = BTreeMap::new();
 
-    for (index, raw_line) in contents.lines().enumerate() {
-        let line_number = index + 1;
-        let kind: ClaudeEventKind =
-            serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
-                path: log_file.path.clone(),
-                line: line_number,
-                source,
-            })?;
+    for (_index, raw_line) in contents.lines().enumerate() {
+        let Ok(kind) = serde_json::from_str::<ClaudeEventKind>(raw_line) else {
+            continue; // skip bad JSON lines
+        };
 
         if kind.event_type != "assistant" {
             continue;
         }
 
-        let event: ClaudeProjectAssistantEvent =
-            serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
-                path: log_file.path.clone(),
-                line: line_number,
-                source,
-            })?;
+        let Ok(event) = serde_json::from_str::<ClaudeProjectAssistantEvent>(raw_line) else {
+            continue; // skip bad JSON lines
+        };
 
         if event.is_sidechain {
             continue;
@@ -577,7 +574,7 @@ fn collect_project_models(
         models.entry(parent_uuid).or_insert(model);
     }
 
-    Ok(models)
+    models
 }
 
 #[cfg(test)]
@@ -726,22 +723,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fails_on_invalid_user_shape() {
+    async fn skips_invalid_lines_preserves_valid_lines() {
+        use futures::TryStreamExt;
         let temp = tempdir().unwrap();
         let transcripts = temp.path().join(".claude/transcripts");
         fs::create_dir_all(&transcripts).unwrap();
+        // Mixed: first line has invalid timestamp (skipped), second line is valid (transcript format)
         fs::write(
             transcripts.join("ses_1.jsonl"),
-            "{\"type\":\"user\",\"timestamp\":\"bad\",\"content\":\"hello\"}\n",
+            "{\"type\":\"user\",\"timestamp\":\"bad\",\"content\":\"should be skipped\"}\n{\"type\":\"user\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"content\":\"should be kept\"}\n",
         )
         .unwrap();
 
-        let error = match ClaudeAdapter::new(temp.path()).poll().await {
-            Ok(_) => panic!("expected claude poll to fail"),
-            Err(error) => error,
-        };
-
-        assert!(error.to_string().contains("invalid timestamp"));
+        let messages: Vec<_> = ClaudeAdapter::new(temp.path())
+            .poll()
+            .await
+            .expect("poll should succeed despite bad lines")
+            .try_collect()
+            .await
+            .expect("collect should succeed");
+        // Only valid line should be parsed
+        assert_eq!(messages.len(), 1);
+        assert!(messages[0].text.contains("should be kept"));
     }
 
     #[tokio::test]

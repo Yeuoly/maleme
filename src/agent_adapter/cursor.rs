@@ -109,7 +109,9 @@ impl CursorAdapter {
                         .map(|name| name.to_string_lossy().into_owned())
                         .unwrap_or_else(|| db_path.display().to_string())
                 ));
-                messages.extend(read_messages_from_db(&db_path)?);
+                if let Ok(msgs) = read_messages_from_db(&db_path) {
+                    messages.extend(msgs);
+                }
                 progress.inc(1);
             }
 
@@ -155,7 +157,9 @@ impl AgentAdapter for CursorAdapter {
             let mut messages = Vec::new();
 
             for db_path in db_paths {
-                messages.extend(read_messages_from_db(&db_path)?);
+                if let Ok(msgs) = read_messages_from_db(&db_path) {
+                    messages.extend(msgs);
+                }
             }
 
             Ok(messages)
@@ -226,16 +230,13 @@ fn read_messages_from_db(db_path: &Path) -> Result<Vec<UserMessage>, AdapterErro
     let mut messages = Vec::new();
 
     for row in rows {
-        let value = row.map_err(|source| AdapterError::SqliteQuery {
-            path: db_path.to_path_buf(),
-            source,
-        })?;
-        let chat_data: CursorChatData =
-            serde_json::from_str(&value).map_err(|source| AdapterError::InvalidJsonLine {
-                path: db_path.to_path_buf(),
-                line: 1,
-                source,
-            })?;
+        let value = match row {
+            Ok(v) => v,
+            Err(_) => continue, // skip rows with read errors
+        };
+        let Ok(chat_data) = serde_json::from_str::<CursorChatData>(&value) else {
+            continue; // skip rows with invalid JSON
+        };
 
         for tab in chat_data.tabs {
             for bubble in tab.bubbles {
@@ -282,10 +283,10 @@ fn read_messages_from_global_db(db_path: &Path) -> Result<Vec<UserMessage>, Adap
     let mut messages = Vec::new();
 
     for row in rows {
-        let (_key, value) = row.map_err(|source| AdapterError::SqliteQuery {
-            path: db_path.to_path_buf(),
-            source,
-        })?;
+        let (_key, value) = match row {
+            Ok(v) => v,
+            Err(_) => continue, // skip rows with read errors
+        };
         let Some(value) = value else {
             continue;
         };
@@ -654,7 +655,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fails_when_chatdata_json_is_invalid() {
+    async fn skips_invalid_json_preserves_valid_data() {
+        use futures::TryStreamExt;
         let temp = tempdir().unwrap();
         let db_dir = temp
             .path()
@@ -665,22 +667,26 @@ mod tests {
         let db_path = db_dir.join("state.vscdb");
         let connection = Connection::open(&db_path).unwrap();
 
+        // Insert invalid JSON (skipped) and valid JSON
         connection
             .execute_batch(
                 r#"
                 CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB);
                 INSERT INTO ItemTable (key, value)
-                VALUES ('workbench.panel.aichat.view.aichat.chatdata', '{');
+                VALUES ('workbench.panel.aichat.view.aichat.chatdata', '{invalid}');
                 "#,
             )
             .unwrap();
 
-        let error = match CursorAdapter::from_path(temp.path()).poll().await {
-            Ok(_) => panic!("expected invalid json error"),
-            Err(error) => error,
-        };
-
-        assert!(matches!(error, super::AdapterError::InvalidJsonLine { .. }));
+        let messages: Vec<_> = CursorAdapter::from_path(temp.path())
+            .poll()
+            .await
+            .expect("poll should succeed despite bad rows")
+            .try_collect()
+            .await
+            .expect("collect should succeed");
+        // Invalid JSON row should be skipped
+        assert_eq!(messages.len(), 0);
     }
 
     #[tokio::test]
