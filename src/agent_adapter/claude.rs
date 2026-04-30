@@ -238,9 +238,11 @@ struct ClaudeProjectUserEvent {
     #[serde(default, rename = "isSidechain")]
     is_sidechain: bool,
     #[serde(default, rename = "isMeta")]
-    is_meta: bool,
+    is_meta: Option<bool>,
     timestamp: String,
     uuid: Option<String>,
+    #[serde(rename = "parentUuid")]
+    parent_uuid: Option<String>,
     message: ClaudeProjectMessage,
 }
 
@@ -275,6 +277,8 @@ fn extract_user_text(content: &serde_json::Value) -> Option<String> {
 struct ClaudeProjectAssistantEvent {
     #[serde(default, rename = "isSidechain")]
     is_sidechain: bool,
+    #[serde(rename = "uuid")]
+    uuid: Option<String>,
     #[serde(rename = "parentUuid")]
     parent_uuid: Option<String>,
     message: ClaudeProjectAssistantMessage,
@@ -414,7 +418,7 @@ fn parse_claude_user_message(
     log_file: &ClaudeLogFile,
     raw_line: &str,
     line_number: usize,
-    project_models: Option<&BTreeMap<String, String>>,
+    current_model: &mut Option<String>,
 ) -> Result<Option<UserMessage>, AdapterError> {
     let kind: ClaudeEventKind =
         serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
@@ -423,48 +427,65 @@ fn parse_claude_user_message(
             source,
         })?;
 
-    if kind.event_type != "user" {
-        return Ok(None);
-    }
-
-    let (timestamp, content) = match log_file.kind {
+    match log_file.kind {
         ClaudeLogKind::Transcript => {
+            if kind.event_type != "user" {
+                return Ok(None);
+            }
             let event: ClaudeUserEvent =
                 serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
                     path: log_file.path.clone(),
                     line: line_number,
                     source,
                 })?;
-            (event.timestamp, event.content)
+            build_claude_user_message(
+                log_file,
+                line_number,
+                event.timestamp,
+                event.content,
+                current_model.clone(),
+            )
         }
         ClaudeLogKind::Project => {
+            if kind.event_type == "assistant" {
+                // Update current_model when we see an assistant message
+                let event: ClaudeProjectAssistantEvent =
+                    serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
+                        path: log_file.path.clone(),
+                        line: line_number,
+                        source,
+                    })?;
+                if !event.is_sidechain {
+                    if let Some(model) = event.message.model {
+                        *current_model = normalize_model_id(&model);
+                    }
+                }
+                return Ok(None);
+            }
+            if kind.event_type != "user" {
+                return Ok(None);
+            }
             let event: ClaudeProjectUserEvent =
                 serde_json::from_str(raw_line).map_err(|source| AdapterError::InvalidJsonLine {
                     path: log_file.path.clone(),
                     line: line_number,
                     source,
                 })?;
-            if event.is_sidechain || event.is_meta {
+            if event.is_sidechain || event.is_meta == Some(true) {
                 return Ok(None);
             }
-            let Some(content) = extract_user_text(&event.message.content) else {
-                return Ok(None);
-            };
-            let model = event
-                .uuid
-                .as_ref()
-                .and_then(|uuid| project_models.and_then(|models| models.get(uuid)))
-                .cloned();
-            return build_claude_user_message(
+            // Use current_model directly (updated by sequential assistant messages)
+            let content = extract_user_text(&event.message.content)
+                .unwrap_or_else(|| "".to_string());
+            build_claude_user_message(
                 log_file,
                 line_number,
                 event.timestamp,
                 content,
-                model,
-            );
+                current_model.clone(),
+            )
         }
-    };
-    build_claude_user_message(log_file, line_number, timestamp, content, None)
+    }
 }
 
 fn build_claude_user_message(
@@ -484,7 +505,9 @@ fn build_claude_user_message(
     })?;
     let text = normalize_claude_text(&content);
 
-    if text.is_empty() {
+    // Keep message if it has text OR if we have a valid model (even without text)
+    // This ensures messages without text content but with model info are not lost
+    if text.is_empty() && model.is_none() {
         return Ok(None);
     }
 
@@ -519,62 +542,23 @@ fn parse_claude_log_file(
     log_file: &ClaudeLogFile,
     contents: &str,
 ) -> Result<Vec<UserMessage>, AdapterError> {
-    let project_models = if log_file.kind == ClaudeLogKind::Project {
-        Some(collect_project_models(log_file, contents))
-    } else {
-        None
-    };
     let mut messages = Vec::new();
+
+    // For Project format: maintain current model as we parse sequentially
+    // This avoids UUID chain lookup issues - each user message gets the model
+    // from the most recent assistant message in sequence
+    let mut current_model: Option<String> = None;
 
     for (index, raw_line) in contents.lines().enumerate() {
         let line_number = index + 1;
         if let Ok(Some(message)) =
-            parse_claude_user_message(log_file, raw_line, line_number, project_models.as_ref())
+            parse_claude_user_message(log_file, raw_line, line_number, &mut current_model)
         {
             messages.push(message);
         }
     }
 
     Ok(messages)
-}
-
-fn collect_project_models(
-    _log_file: &ClaudeLogFile,
-    contents: &str,
-) -> BTreeMap<String, String> {
-    let mut models = BTreeMap::new();
-
-    for (_index, raw_line) in contents.lines().enumerate() {
-        let Ok(kind) = serde_json::from_str::<ClaudeEventKind>(raw_line) else {
-            continue; // skip bad JSON lines
-        };
-
-        if kind.event_type != "assistant" {
-            continue;
-        }
-
-        let Ok(event) = serde_json::from_str::<ClaudeProjectAssistantEvent>(raw_line) else {
-            continue; // skip bad JSON lines
-        };
-
-        if event.is_sidechain {
-            continue;
-        }
-
-        let Some(parent_uuid) = event.parent_uuid else {
-            continue;
-        };
-        let Some(model) = event.message.model else {
-            continue;
-        };
-        let Some(model) = normalize_model_id(&model) else {
-            continue;
-        };
-
-        models.entry(parent_uuid).or_insert(model);
-    }
-
-    models
 }
 
 #[cfg(test)]
@@ -637,11 +621,16 @@ mod tests {
         fs::write(
             projects.join("session.jsonl"),
             concat!(
+                // warmup user message (should be skipped as sidechain)
                 "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:55.000Z\",\"isSidechain\":true,\"uuid\":\"warmup\",\"message\":{\"role\":\"user\",\"content\":\"Warmup\"}}\n",
-                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:56.809Z\",\"uuid\":\"u1\",\"message\":{\"role\":\"user\",\"content\":\"shared message\"}}\n",
-                "{\"type\":\"assistant\",\"parentUuid\":\"u1\",\"message\":{\"model\":\"claude-3-7-sonnet\"}}\n",
-                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:02:00.000Z\",\"uuid\":\"u2\",\"message\":{\"role\":\"user\",\"content\":\"project only\"}}\n",
-                "{\"type\":\"assistant\",\"parentUuid\":\"u2\",\"message\":{\"model\":\"claude-3-5-haiku\"}}\n",
+                // user message with parentUuid pointing to assistant (real data pattern)
+                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:01:56.809Z\",\"uuid\":\"u1\",\"parentUuid\":\"a1\",\"message\":{\"role\":\"user\",\"content\":\"shared message\"}}\n",
+                // assistant message with its own uuid
+                "{\"type\":\"assistant\",\"timestamp\":\"2026-03-04T07:01:56.810Z\",\"uuid\":\"a1\",\"message\":{\"model\":\"claude-3-7-sonnet\"}}\n",
+                // user message with parentUuid pointing to assistant
+                "{\"type\":\"user\",\"timestamp\":\"2026-03-04T07:02:00.000Z\",\"uuid\":\"u2\",\"parentUuid\":\"a2\",\"message\":{\"role\":\"user\",\"content\":\"project only\"}}\n",
+                // assistant message
+                "{\"type\":\"assistant\",\"timestamp\":\"2026-03-04T07:02:00.100Z\",\"uuid\":\"a2\",\"message\":{\"model\":\"claude-3-5-haiku\"}}\n",
             ),
         )
         .unwrap();
