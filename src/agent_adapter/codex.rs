@@ -314,39 +314,6 @@ fn parse_session_file(
     Ok(messages)
 }
 
-fn required_string<'a>(
-    raw: &'a serde_json::Value,
-    path_segments: &[&str],
-    path: &Path,
-    line_number: usize,
-) -> Result<&'a str, AdapterError> {
-    let mut current = raw;
-
-    for segment in path_segments {
-        current = current
-            .get(*segment)
-            .ok_or_else(|| AdapterError::InvalidJsonLine {
-                path: path.to_path_buf(),
-                line: line_number,
-                source: serde_json::Error::io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("missing field {}", path_segments.join(".")),
-                )),
-            })?;
-    }
-
-    current
-        .as_str()
-        .ok_or_else(|| AdapterError::InvalidJsonLine {
-            path: path.to_path_buf(),
-            line: line_number,
-            source: serde_json::Error::io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("field {} is not a string", path_segments.join(".")),
-            )),
-        })
-}
-
 fn read_session_models_from_state_db(
     db_path: &Path,
 ) -> Result<BTreeMap<PathBuf, String>, AdapterError> {
@@ -470,12 +437,6 @@ enum CodexLine {
     Ignored(CodexIgnoredLine),
 }
 
-#[derive(Debug, Deserialize)]
-struct CodexLineKind {
-    #[serde(default, rename = "type")]
-    line_type: Option<String>,
-}
-
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -498,21 +459,22 @@ struct CodexLegacyGit {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CodexNewUserMessageLine {
-    timestamp: String,
+    _timestamp: String,
     #[serde(rename = "type")]
     _line_type: String,
-    payload: CodexNewUserMessagePayload,
+    _payload: CodexNewUserMessagePayload,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CodexNewUserMessagePayload {
     #[serde(rename = "type")]
-    item_type: String,
-    role: String,
-    content: Vec<CodexMessageContent>,
+    _item_type: String,
+    _role: String,
+    _content: Vec<CodexMessageContent>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CodexTurnContextLine {
@@ -523,6 +485,7 @@ struct CodexTurnContextLine {
     payload: CodexTurnContextPayload,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CodexTurnContextPayload {
@@ -536,8 +499,8 @@ struct CodexLegacyUserMessageLine {
     _line_type: String,
     #[serde(rename = "id")]
     _id: serde_json::Value,
-    role: String,
-    content: Vec<CodexMessageContent>,
+    _role: String,
+    _content: Vec<CodexMessageContent>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -552,7 +515,7 @@ struct CodexLegacyStateRecord {
 struct CodexMessageContent {
     #[serde(rename = "type")]
     _item_type: String,
-    text: String,
+    _text: String,
 }
 
 #[derive(Debug, Deserialize)]
